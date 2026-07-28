@@ -259,7 +259,7 @@ tr:hover td{background:#0d1320}
 // Carrega dados do Google Sheets
 (function(){
   var SHEET_ID='1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c';
-  var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet=dados';
+  var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/export?format=csv&sheet=dados';
   
   function parseCSV(text){
     var lines=text.split('\n');
