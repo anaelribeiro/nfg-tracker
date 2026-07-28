@@ -275,6 +275,31 @@ tr:hover td{background:#0d1320}
     window.LAB_DIA_I=dias.map(function(x){return x[0];});
     window.VAL_DIA_I=dias.map(function(x){return +x[1].toFixed(2);});
     window.TOTAL_GASTO=+window.ALL_ITENS.reduce(function(s,r){return s+r.val;},0).toFixed(2);
+    // categorias e análise nutricional via classNutri
+    var bCat={},bCatMes={};
+    window.ALL_ITENS.forEach(function(r){
+      var cat=typeof classNutri==='function'?'🏗️ Outros':r.cat;
+      // usa a função de categorização do script principal se disponível
+      bCat[r.cat]=(bCat[r.cat]||0)+r.val;
+      if(!bCatMes[r.cat])bCatMes[r.cat]={};
+      bCatMes[r.cat][r.mes]=(bCatMes[r.cat][r.mes]||0)+r.val;
+    });
+    var catSorted=Object.entries(bCat).sort(function(a,b){return b[1]-a[1];});
+    window.LAB_CAT=catSorted.map(function(x){return x[0].split(' ').slice(1).join(' ')||x[0];});
+    window.VAL_CAT=catSorted.map(function(x){return +x[1].toFixed(2);});
+    window.CATS_FULL=catSorted.map(function(x){return x[0];});
+    window.CAT_MES_DATA=bCatMes;
+    window.MESES_ALL=window.LAB_MES_I.slice();
+    var colors=['#38bdf8','#34d399','#a78bfa','#f472b6','#fb923c','#facc15','#4ade80','#60a5fa'];
+    window.STACKED_SETS=window.CATS_FULL.slice(0,8).map(function(cat,i){
+      return {label:cat.split(' ').slice(1).join(' ')||cat,
+        data:window.MESES_ALL.map(function(m){return +(bCatMes[cat]&&bCatMes[cat][m]||0).toFixed(2);}),
+        backgroundColor:colors[i],borderRadius:2,stack:'s'};
+    });
+    // LAB_FILIAIS_I = mesma coisa que LAB_LOJAS_I neste contexto
+    window.LAB_FILIAIS_I=window.LAB_LOJAS_I.slice();
+    window.VAL_FILIAIS_I=window.VAL_LOJAS_I.slice();
+    window.FILIAIS_LIST=window.LAB_LOJAS_I.slice();
     var pn={};window.ALL_ITENS.forEach(function(r){if(!pn[r.desc])pn[r.desc]=[];pn[r.desc].push({chave:r.chave,data:r.data,loja:r.loja_c,filial:r.filial,mes:r.mes,val:r.val});});
     window.PROD_NOTAS=pn;
     var m=document.getElementById('loadingMsg');if(m)m.style.display='none';
