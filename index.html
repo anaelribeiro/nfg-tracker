@@ -750,7 +750,8 @@ var PROD_NOTAS={};
       '<div style="font-size:.68rem;color:var(--muted)">'+e.tip+'</div></div>'+
       '<div class="eco-save">~R$ '+e.save+'/mes</div></div>';
   });
-  document.getElementById('ecoList').innerHTML=ecoItems.length?ecoItems.join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade identificada.</div>';
+  var ecoEmpty='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade.</div>';
+  document.getElementById('ecoList').innerHTML=ecoItems.length?ecoItems.join(''):ecoEmpty;
 }
 
 // inicializa com os dados filtrados
