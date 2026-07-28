@@ -249,7 +249,7 @@ tr:hover td{background:#0d1320}
   function build(rows){
     var bM={},bL={},bN={};
     window.ALL_ITENS=rows.map(function(r){
-      var val=parseFloat((r.valor_total||'').replace(',','.'))||0,qtd=parseFloat((r.quantidade||'').replace(',','.'))||0;
+      var val=parseFloat((r.valor_total||'').replace(/"/g,'').replace(',','.'))||0,qtd=parseFloat((r.quantidade||'').replace(/"/g,'').replace(',','.'))||0;
       var e=r.emissao||'',mes='?',dfmt=e;
       try{var p=e.split('/'),yr=parseInt(p[2])<100?2000+parseInt(p[2]):parseInt(p[2]);
         var d=new Date(yr,parseInt(p[1])-1,parseInt(p[0]));
