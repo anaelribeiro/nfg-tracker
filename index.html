@@ -238,6 +238,7 @@ tr:hover td{background:#0d1320}
   var SID='1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c';
   var url='https://docs.google.com/spreadsheets/d/'+SID+'/export?format=csv&sheet=dados';
   function parseCSV(t){
+    t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
     var rows=t.split('\n'),h=rows[0].replace(/"/g,'').split(',');
     return rows.slice(1).filter(Boolean).map(function(row){
       var v=[],c='',q=false;
