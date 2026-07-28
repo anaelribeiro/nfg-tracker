@@ -1,0 +1,9 @@
+config.json
+session/
+data/*.xml
+data/notas_2026.csv
+data/itens.csv
+data/cnpj_enderecos.json
+__pycache__/
+*.pyc
+*.log
