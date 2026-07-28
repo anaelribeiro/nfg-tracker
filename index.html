@@ -231,7 +231,118 @@ tr:hover td{background:#0d1320}
 </div>
 </div>
 
-<script src="dados.js"></script>
+<script>
+// Carrega dados do Google Sheets
+(function(){
+  var SHEET_ID='1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c';
+  var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet=dados';
+  
+  function parseCSV(text){
+    var lines=text.split('\n');
+    var header=lines[0].replace(/"/g,'').split(',');
+    return lines.slice(1).filter(function(l){return l.trim();}).map(function(line){
+      var vals=[];var cur='';var inQ=false;
+      for(var i=0;i<line.length;i++){
+        if(line[i]==='"'){inQ=!inQ;}
+        else if(line[i]===','&&!inQ){vals.push(cur);cur='';}
+        else{cur+=line[i];}
+      }
+      vals.push(cur);
+      var obj={};
+      header.forEach(function(h,i){obj[h]=vals[i]||'';}); 
+      return obj;
+    });
+  }
+
+  function buildDados(rows){
+    var enderecos={};
+    // monta ALL_ITENS
+    window.ALL_ITENS=rows.map(function(r){
+      var val=parseFloat((r.valor_total||'0').replace(',','.'));
+      var qtd=parseFloat((r.quantidade||'0').replace(',','.'));
+      var emissao=r.emissao||'';
+      var mes='?',dia='?',data=emissao;
+      try{
+        var p=emissao.split('/');
+        var yr=parseInt(p[2])<100?2000+parseInt(p[2]):parseInt(p[2]);
+        var d=new Date(yr,parseInt(p[1])-1,parseInt(p[0]));
+        mes=yr+'-'+(('0'+(d.getMonth()+1)).slice(-2));
+        dia=yr+'-'+(('0'+(d.getMonth()+1)).slice(-2))+'-'+(('0'+d.getDate()).slice(-2));
+      }catch(e){}
+      return {
+        desc:(r.descricao||'').replace(/^"|"$/g,'').replace(/"/g,'').trim().replace(/\b\w/g,function(c){return c.toUpperCase();}),
+        loja:r.loja||'',filial:r.loja||'',muni:r.municipio||'',
+        mes:mes,dia:dia,val:val,qtd:qtd,un:r.unidade||'',
+        data:emissao,cat:'🏗️ Outros',loja_c:(r.loja||'').substring(0,25),chave:r.chave||''
+      };
+    });
+    
+    // reagrupa para os demais vars
+    var byMes={},byLoja={},byFilial={},byMuni={},byCat={};
+    window.ALL_ITENS.forEach(function(r){
+      byMes[r.mes]=(byMes[r.mes]||0)+r.val;
+      byLoja[r.loja]=(byLoja[r.loja]||0)+r.val;
+      byFilial[r.filial]=(byFilial[r.filial]||0)+r.val;
+      byMuni[r.muni]=(byMuni[r.muni]||0)+r.val;
+    });
+    
+    var srt=function(o,n){return Object.entries(o).sort(function(a,b){return b[1]-a[1];}).slice(0,n||12);};
+    var msOrd=Object.entries(byMes).sort(function(a,b){return a[0].localeCompare(b[0]);});
+    var topL=srt(byLoja);var topF=srt(byFilial,30);var topM=srt(byMuni,10);
+    
+    window.LAB_MES_I=msOrd.map(function(x){return x[0];});
+    window.VAL_MES_I=msOrd.map(function(x){return Math.round(x[1]*100)/100;});
+    window.LAB_LOJAS_I=topL.map(function(x){return x[0];});
+    window.VAL_LOJAS_I=topL.map(function(x){return Math.round(x[1]*100)/100;});
+    window.LAB_FILIAIS_I=topF.map(function(x){return x[0];});
+    window.VAL_FILIAIS_I=topF.map(function(x){return Math.round(x[1]*100)/100;});
+    window.LAB_MUNI=topM.map(function(x){return x[0];});
+    window.VAL_MUNI=topM.map(function(x){return Math.round(x[1]*100)/100;});
+    window.MESES_ALL=window.LAB_MES_I.slice();
+    window.LAB_CAT=[]; window.VAL_CAT=[];
+    window.CATS_FULL=[]; window.CAT_MES_DATA={};
+    window.STACKED_SETS=[];
+    window.LOJAS_LIST=Object.keys(byLoja).sort();
+    window.MESES_LIST=window.LAB_MES_I.slice();
+    window.MUNI_LIST=Object.keys(byMuni).sort();
+    window.FILIAIS_LIST=window.LAB_FILIAIS_I.slice();
+    window.CATS_LIST=[];
+    window.TOTAL_GASTO=window.ALL_ITENS.reduce(function(s,r){return s+r.val;},0);
+    
+    // PROD_NOTAS
+    var pn={};
+    window.ALL_ITENS.forEach(function(r){
+      if(!pn[r.desc]) pn[r.desc]=[];
+      pn[r.desc].push({chave:r.chave,data:r.data,loja:r.loja_c,filial:r.filial,mes:r.mes,val:r.val});
+    });
+    window.PROD_NOTAS=pn;
+    
+    // dispara inicialização
+    document.getElementById('loadingMsg').style.display='none';
+    if(typeof initDashboard==='function') initDashboard();
+  }
+
+  // mostra loading enquanto carrega
+  document.addEventListener('DOMContentLoaded',function(){
+    var msg=document.createElement('div');
+    msg.id='loadingMsg';
+    msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9999;border:1px solid #1e2d45';
+    msg.textContent='Carregando dados...';
+    document.body.appendChild(msg);
+    
+    fetch(url)
+      .then(function(r){return r.text();})
+      .then(function(text){
+        var rows=parseCSV(text);
+        buildDados(rows);
+      })
+      .catch(function(e){
+        msg.textContent='Erro ao carregar dados: '+e.message;
+        msg.style.color='#f472b6';
+      });
+  });
+})();
+</script>
 <script>
 // Declarações de análise nutricional — devem vir antes de applyFilters
 var ULTRA_KW=['REFRI','ENERGETICO','MONSTER','BALA','BOMBOM','WAFER','SALGAD','BATATA PALHA',
@@ -679,7 +790,22 @@ function updateAnalises(filtered){
 }
 
 // inicializa com os dados filtrados
-updateAnalises(ALL_ITENS.filter(function(r){return !excludedFiliais.has(r.filial);}));
+function initDashboard(){
+  // popula selects
+  LOJAS_LIST.forEach(function(l){var o=new Option(l,l);document.getElementById('fLoja').add(o);});
+  MESES_LIST.forEach(function(m){var o=new Option(m,m);document.getElementById('fMes').add(o);});
+  MUNI_LIST.forEach(function(m){var o=new Option(m,m);document.getElementById('fMuni').add(o);});
+  CATS_LIST.forEach(function(c){var o=new Option(c,c);document.getElementById('fCat').add(o);});
+  FILIAIS_LIST.forEach(function(f){document.getElementById('fFilial').add(new Option(f,f));});
+  buildFilialList(); updateFilialUI();
+  var catTotals={};
+  ALL_ITENS.forEach(function(r){catTotals[r.cat]=(catTotals[r.cat]||0)+r.val;});
+  renderCatCards(catTotals);
+  applyFilters();
+  updateAnalises(ALL_ITENS.filter(function(r){return !excludedFiliais.has(r.filial);}));
+}
+// se dados já carregados (local), chama agora
+if(typeof ALL_ITENS !== 'undefined' && ALL_ITENS.length > 0) initDashboard();
 </script>
 
 <div id="nfeModal" style="display:none;position:fixed;inset:0;background:#000a;z-index:1000;align-items:center;justify-content:center">
