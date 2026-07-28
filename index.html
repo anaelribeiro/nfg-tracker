@@ -742,12 +742,12 @@ var PROD_NOTAS={};
   if(parseFloat(freqSem)>5){
     eco.push({desc:'Reduzir idas ao mercado (5x→3x/sem)',save:Math.round(mediaM*0.1),tip:'Menos idas = menos compras por impulso (~10%)'});
   }
-
-  document.getElementById('ecoList').innerHTML=eco.length?eco.map(function(e){
+  var ecoItems=eco.map(function(e){
     return '<div class="eco-item"><div><div style="font-size:.78rem;color:var(--text);font-weight:500">'+e.desc+'</div>'+
       '<div style="font-size:.68rem;color:var(--muted)">'+e.tip+'</div></div>'+
-      '<div class="eco-save">~R$ '+e.save+'/m\u00eas</div></div>';
-  }).join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade significativa identificada no período filtrado.</div>';
+      '<div class="eco-save">~R$ '+e.save+'/mes</div></div>';
+  });
+  document.getElementById('ecoList').innerHTML=ecoItems.length?ecoItems.join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade identificada.</div>';
 }
 
 // inicializa com os dados filtrados
