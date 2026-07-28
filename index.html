@@ -689,19 +689,19 @@ var PROD_NOTAS={};
   var totalRefri=filtered.filter(function(r){return r.desc.toUpperCase().indexOf('REFRI')>=0;}).reduce(function(s,r){return s+r.val;},0);
   if(totalRefri>0){
     var rM=Math.round(totalRefri/nMeses);
-    insights.push({icon:'🥤',type:rM>80?'red':'yellow',text:'Você gasta <strong>R$ '+rM+'/mês</strong> em refrigerantes.',sub:rM>80?'Considere reduzir — são R$ '+(rM*12)+'/ano.':'Consumo moderado de refri.'});
+    insights.push({icon:'🥤',type:rM>80?'red':'yellow',text:'Você gasta <strong>R$ '+rM+'/m\u00eas</strong> em refrigerantes.',sub:rM>80?'Considere reduzir — são R$ '+(rM*12)+'/ano.':'Consumo moderado de refri.'});
   }
 
   // monster/energético
   var totalEnerg=filtered.filter(function(r){return r.desc.toUpperCase().indexOf('MONSTER')>=0||r.desc.toUpperCase().indexOf('ENERGETICO')>=0;}).reduce(function(s,r){return s+r.val;},0);
   if(totalEnerg>0){
-    insights.push({icon:'⚡',type:'yellow',text:'Gasto com energéticos: <strong>R$ '+Math.round(totalEnerg/nMeses)+'/mês</strong>.',sub:'Monster e similares são ultraprocessados com alto teor de açúcar/cafeína.'});
+    insights.push({icon:'⚡',type:'yellow',text:'Gasto com energéticos: <strong>R$ '+Math.round(totalEnerg/nMeses)+'/m\u00eas</strong>.',sub:'Monster e similares são ultraprocessados com alto teor de açúcar/cafeína.'});
   }
 
   // dia mais caro
   var maxDowIdx=byDow.indexOf(Math.max.apply(null,byDow));
   if(byDow[maxDowIdx]>0){
-    insights.push({icon:'📅',type:'blue',text:dowLabs[maxDowIdx]+' é seu dia de maior gasto (<strong>R$ '+Math.round(byDow[maxDowIdx]/nMeses)+'/mês</strong>).',sub:'Concentrar compras em um dia ajuda a controlar o orçamento.'});
+    insights.push({icon:'📅',type:'blue',text:dowLabs[maxDowIdx]+' é seu dia de maior gasto (<strong>R$ '+Math.round(byDow[maxDowIdx]/nMeses)+'/m\u00eas</strong>).',sub:'Concentrar compras em um dia ajuda a controlar o orçamento.'});
   }
 
   // nutricional
@@ -746,7 +746,7 @@ var PROD_NOTAS={};
   document.getElementById('ecoList').innerHTML=eco.length?eco.map(function(e){
     return '<div class="eco-item"><div><div style="font-size:.78rem;color:var(--text);font-weight:500">'+e.desc+'</div>'+
       '<div style="font-size:.68rem;color:var(--muted)">'+e.tip+'</div></div>'+
-      '<div class="eco-save">~R$ '+e.save+'/mês</div></div>';
+      '<div class="eco-save">~R$ '+e.save+'/m\u00eas</div></div>';
   }).join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade significativa identificada no período filtrado.</div>';
 }
 
