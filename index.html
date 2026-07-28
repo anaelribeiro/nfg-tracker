@@ -334,11 +334,7 @@ function mkDonut(id,labels,data){
 }
 
 
-// selects simples
-LOJAS_LIST.forEach(function(l){document.getElementById('fLoja').add(new Option(l,l));});
-MESES_LIST.forEach(function(m){document.getElementById('fMes').add(new Option(m,m));});
-MUNI_LIST.forEach(function(m){document.getElementById('fMuni').add(new Option(m,m));});
-CATS_LIST.forEach(function(c){document.getElementById('fCat').add(new Option(c,c));});
+// selects populados em initDashboard()
 
 // multi-select filiais — lógica opt-OUT (todas ativas, desmarca para excluir)
 var excludedFiliais=new Set(['UNIDASUL DISTRIBUIDORA ALIMENTICIA S/A — JOAO CORREA, 1827, CENTRO']);
