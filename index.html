@@ -701,7 +701,7 @@ function initDashboard(){
   MESES_LIST.forEach(function(m){document.getElementById('fMes').add(new Option(m,m));});
   MUNI_LIST.forEach(function(m){document.getElementById('fMuni').add(new Option(m,m));});
   CATS_LIST.forEach(function(c){document.getElementById('fCat').add(new Option(c,c));});
-  FILIAIS_LIST.forEach(function(f){document.getElementById('fFilial').add(new Option(f,f));});
+
   // inicializa gráficos com dados do Sheets
   mkBar('cMes',LAB_MES_I,VAL_MES_I);
   mkDonut('cLojas',LAB_LOJAS_I,VAL_LOJAS_I);
