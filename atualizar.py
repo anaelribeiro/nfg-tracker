@@ -8,6 +8,11 @@ import csv, json, time, subprocess, sys, warnings
 import xml.etree.ElementTree as ET
 import requests
 from pathlib import Path
+
+# ── Configuração Google Sheets ────────────────────────────────────
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpfWeHAm8_wBt-r6LVkCCXVTP3AyygtOTV1Dif7iIiJU712yGwV2_hybAwmJQzcgZ3-Q/exec"
+SHEET_ID        = "1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c"
+SHEET_CSV_URL   = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=dados"
 from datetime import datetime
 
 try:
@@ -204,15 +209,94 @@ def salvar_itens(itens):
 
 def gerar_dashboard():
     script_dir = Path(__file__).parent
-    # chama o script do dashboard diretamente
     result = subprocess.run(
         ["python3", str(script_dir / "gerar_dashboard.py")],
         capture_output=True, text=True
     )
     if result.returncode == 0:
-        print(f"[✓] {result.stdout.strip()}")
+        print(f"[✓] {result.stdout.strip() or 'Dashboard gerado'}")
     else:
         print(f"[!] Erro no dashboard: {result.stderr[:100]}")
+
+def subir_sheets():
+    """Sobe apenas os itens novos (diferencial) para o Google Sheets."""
+    if not ITENS_CSV.exists():
+        print("[!] itens.csv não encontrado")
+        return
+
+    # lê todos os itens locais
+    with open(ITENS_CSV, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        all_rows = list(reader)
+
+    if len(all_rows) < 2:
+        print("[!] itens.csv vazio")
+        return
+
+    header = all_rows[0]
+    data_rows = all_rows[1:]
+
+    # descobre quantas linhas já estão na planilha
+    print("[*] Verificando planilha Google Sheets...")
+    try:
+        r = requests.get(SHEET_CSV_URL, timeout=10)
+        if r.status_code == 200:
+            existing = r.text.strip().split('\n')
+            # desconta cabeçalho
+            linhas_existentes = len(existing) - 1 if len(existing) > 1 else 0
+        else:
+            linhas_existentes = 0
+    except Exception as e:
+        print(f"[!] Não foi possível verificar Sheets: {e}")
+        linhas_existentes = 0
+
+    novas = data_rows[linhas_existentes:]
+
+    if not novas:
+        print(f"[✓] Sheets já atualizado ({linhas_existentes} linhas)")
+        return
+
+    print(f"    Sheets tem {linhas_existentes} linhas, local tem {len(data_rows)} — enviando {len(novas)} novas...")
+
+    try:
+        # se não tem cabeçalho ainda, manda primeiro
+        if linhas_existentes == 0:
+            requests.post(APPS_SCRIPT_URL, json={"action":"header","row":header}, timeout=30)
+
+        # manda em lotes de 50
+        BATCH = 50
+        for i in range(0, len(novas), BATCH):
+            batch = novas[i:i+BATCH]
+            requests.post(APPS_SCRIPT_URL, json={"rows": batch}, timeout=60)
+            sent = min(i+BATCH, len(novas))
+            print(f"  {sent}/{len(novas)} linhas", flush=True)
+            time.sleep(0.3)
+
+        print(f"[✓] +{len(novas)} linhas enviadas para o Sheets")
+        print(f"    docs.google.com/spreadsheets/d/{SHEET_ID}")
+    except Exception as e:
+        print(f"[!] Erro ao enviar para Sheets: {e}")
+
+def publicar_github():
+    """Faz git push do index.html existente (não sobrescreve)."""
+    repo_dir = Path(__file__).parent
+
+    # git push — apenas commita o index.html existente sem modificar
+    try:
+        subprocess.run(["git", "-C", str(repo_dir), "add", "index.html"], check=True)
+        result = subprocess.run(
+            ["git", "-C", str(repo_dir), "commit", "-m",
+             f"Atualiza dashboard — {__import__('datetime').datetime.now().strftime('%d/%m/%Y %H:%M')}"],
+            capture_output=True, text=True
+        )
+        if "nothing to commit" in result.stdout + result.stderr:
+            print("[✓] GitHub Pages já atualizado (sem mudanças)")
+            return
+        subprocess.run(["git", "-C", str(repo_dir), "push"], check=True)
+        print("[✓] Publicado em anaelribeiro.github.io/nfg-tracker")
+        print("     (atualiza em ~1 minuto)")
+    except Exception as e:
+        print(f"[!] Erro ao publicar no GitHub: {e}")
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
@@ -260,6 +344,8 @@ def main():
     if itens_novos:
         salvar_itens(itens_novos)
     gerar_dashboard()
+    subir_sheets()
+    publicar_github()
 
     print(f"\n[✓] Concluído: +{len(novas)} notas, +{len(itens_novos)} itens")
     import os; os.system(f"open '{DASH_HTML}'")

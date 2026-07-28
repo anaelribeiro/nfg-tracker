@@ -116,11 +116,11 @@ tr:hover td{background:#0d1320}
 <div class="main">
 
 <div class="cards">
-  <div class="card"><div class="lbl">Total gasto</div><div class="val" style="color:var(--blue)">R$ 14,930.73</div><div class="sub">238 notas · 1359 itens</div></div>
-  <div class="card"><div class="lbl">Notas</div><div class="val" style="color:var(--green)">238<span style="font-size:.9rem;color:var(--muted)">/246</span></div><div class="pbar"><div class="pfill" style="width:97%"></div></div></div>
-  <div class="card"><div class="lbl">Produtos únicos</div><div class="val" style="color:var(--purple)">753</div><div class="sub">26 redes · 30 filiais</div></div>
-  <div class="card"><div class="lbl">Ticket médio</div><div class="val" style="color:var(--pink)">R$ 62.73</div><div class="sub">por nota fiscal</div></div>
-  <div class="card"><div class="lbl">Maior categoria</div><div class="val" style="color:var(--orange);font-size:.9rem;padding-top:6px">🏗️ Outros</div><div class="sub">R$ 4,659.37 · 31% do total</div></div>
+  <div class="card"><div class="lbl">Total gasto</div><div class="val" style="color:var(--blue)" id="kTotal">R$ 14,930.73</div><div class="sub" id="kSub">238 notas · 1359 itens</div></div>
+  <div class="card"><div class="lbl">Notas</div><div class="val" style="color:var(--green)" id="kNotas">238<span style="font-size:.9rem;color:var(--muted)">/246</span></div><div class="pbar"><div class="pfill" id="kPfill" style="width:97%"></div></div></div>
+  <div class="card"><div class="lbl">Produtos únicos</div><div class="val" style="color:var(--purple)" id="kProds">753</div><div class="sub" id="kRedes">26 redes · 30 filiais</div></div>
+  <div class="card"><div class="lbl">Ticket médio</div><div class="val" style="color:var(--pink)" id="kTicket">R$ 62.73</div><div class="sub">por nota fiscal</div></div>
+  <div class="card"><div class="lbl">Maior categoria</div><div class="val" style="color:var(--orange);font-size:.9rem;padding-top:6px" id="kCatNome">🏗️ Outros</div><div class="sub" id="kCatSub">R$ 4,659.37 · 31% do total</div></div>
 </div>
 
 <!-- filtros -->
@@ -128,8 +128,15 @@ tr:hover td{background:#0d1320}
   <div class="filters-row">
     <div class="fgrp"><label>Rede / Loja</label><select id="fLoja" onchange="applyFilters()"><option value="">Todas as redes</option></select></div>
     <div class="fgrp"><label>Mês</label><select id="fMes" onchange="applyFilters()"><option value="">Todos os meses</option></select></div>
+    <div class="fgrp"><label>Dia</label><select id="fDia" onchange="applyFilters()"><option value="">Todos os dias</option></select></div>
     <div class="fgrp"><label>Município</label><select id="fMuni" onchange="applyFilters()"><option value="">Todos</option></select></div>
     <div class="fgrp"><label>Categoria</label><select id="fCat" onchange="applyFilters()"><option value="">Todas</option></select></div>
+    <div class="fgrp"><label>Qualidade</label><select id="fNutri" onchange="applyFilters()">
+      <option value="">Todas</option>
+      <option value="ultra">🚨 Ultraprocessado</option>
+      <option value="saud">🥗 Saudável</option>
+      <option value="neutro">⬜ Neutro</option>
+    </select></div>
     <div class="fgrp"><label>Produto</label><input type="text" id="fProd" placeholder="buscar produto..." oninput="applyFilters()" style="min-width:160px"></div>
     <button class="btn" onclick="resetFilters()">✕ Limpar</button>
     <div class="fstat" style="margin-left:auto"><span id="fCount" style="color:var(--text);font-weight:600">1359</span> itens · R$ <span id="fTotal" style="color:var(--blue);font-weight:600">14,930.73</span></div>
@@ -446,19 +453,39 @@ function filterByCat(cat){
 function applyFilters(){
   var loja=document.getElementById('fLoja').value;
   var mes=document.getElementById('fMes').value;
+  var dia=document.getElementById('fDia')?document.getElementById('fDia').value:'';
   var muni=document.getElementById('fMuni').value;
   var cat=document.getElementById('fCat').value||activeCat;
+  var nutriF=document.getElementById('fNutri')?document.getElementById('fNutri').value:'';
   var prod=document.getElementById('fProd').value.toLowerCase().trim();
-  var filiais=excludedFiliais;
   var f=ALL_ITENS.filter(function(r){
     return (!loja||r.loja===loja)&&
            (excludedFiliais.size===0||!excludedFiliais.has(r.filial))&&
-           (!mes||r.mes===mes)&&(!muni||r.muni===muni)&&
-           (!cat||r.cat===cat)&&(!prod||r.desc.toLowerCase().includes(prod));
+           (!mes||r.mes===mes)&&(!dia||r.dia===dia)&&(!muni||r.muni===muni)&&
+           (!cat||r.cat===cat)&&(!nutriF||r.nutri===nutriF)&&(!prod||r.desc.toLowerCase().includes(prod));
   });
   var tot=f.reduce(function(s,r){return s+r.val;},0);
   document.getElementById('fCount').textContent=f.length;
   document.getElementById('fTotal').textContent=tot.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  // atualiza cards KPI
+  if(document.getElementById('kTotal')){
+    var notasF=new Set(f.map(function(r){return r.chave;})).size;
+    var prodsF=new Set(f.map(function(r){return r.desc;})).size;
+    var redesF=new Set(f.map(function(r){return r.loja;})).size;
+    document.getElementById('kTotal').textContent='R$ '+tot.toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('kSub').textContent=notasF+' notas · '+f.length+' itens';
+    document.getElementById('kNotas').innerHTML=notasF+'<span style="font-size:.9rem;color:var(--muted)">/246</span>';
+    document.getElementById('kPfill').style.width=Math.round(notasF/246*100)+'%';
+    document.getElementById('kProds').textContent=prodsF;
+    document.getElementById('kRedes').textContent=redesF+' redes';
+    document.getElementById('kTicket').textContent=notasF>0?'R$ '+(tot/notasF).toLocaleString('pt-BR',{minimumFractionDigits:2}):'R$ 0';
+    var byCat2={};f.forEach(function(r){byCat2[r.cat]=(byCat2[r.cat]||0)+r.val;});
+    var topCat=Object.entries(byCat2).sort(function(a,b){return b[1]-a[1];})[0];
+    if(topCat&&tot>0){
+      document.getElementById('kCatNome').textContent=topCat[0];
+      document.getElementById('kCatSub').textContent='R$ '+topCat[1].toLocaleString('pt-BR',{minimumFractionDigits:2})+' · '+Math.round(topCat[1]/tot*100)+'% do total';
+    }
+  }
   var byMes={},byLoja={},byFilial={},byMuni={},byCat={};
   f.forEach(function(r){
     byMes[r.mes]=(byMes[r.mes]||0)+r.val;
@@ -512,7 +539,7 @@ function toggleTheme(){
   applyFilters();
 }
 function resetFilters(){
-  ['fLoja','fMes','fMuni','fCat'].forEach(function(id){document.getElementById(id).value='';});
+  ['fLoja','fMes','fDia','fMuni','fCat','fNutri'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('fProd').value=''; document.getElementById('tblSearch').value='';
   activeCat='';
   // restaura exclusão padrão: Macromix João Correia
@@ -727,6 +754,12 @@ function updateAnalises(filtered){
 function initDashboard(){
   LOJAS_LIST.forEach(function(l){document.getElementById('fLoja').add(new Option(l,l));});
   MESES_LIST.forEach(function(m){document.getElementById('fMes').add(new Option(m,m));});
+  // filtro de dia
+  var fDiaEl=document.getElementById('fDia');
+  if(fDiaEl){
+    var dias=[...new Set(ALL_ITENS.map(function(r){return r.dia;}))].filter(Boolean).sort().reverse();
+    dias.forEach(function(d){var p=d.split('-');fDiaEl.add(new Option(p[2]+'/'+p[1]+'/'+p[0],d));});
+  }
   MUNI_LIST.forEach(function(m){document.getElementById('fMuni').add(new Option(m,m));});
   CATS_LIST.forEach(function(c){document.getElementById('fCat').add(new Option(c,c));});
 
@@ -748,6 +781,44 @@ function initDashboard(){
   }
 }
 if(typeof ALL_ITENS!=='undefined'&&ALL_ITENS.length>0) initDashboard();
+
+function showNotasModal(desc,btn){
+  if(!window.PROD_NOTAS||!PROD_NOTAS[desc])return;
+  var notas=PROD_NOTAS[desc];
+  var fMes=document.getElementById('fMes').value;
+  var fDia=document.getElementById('fDia')?document.getElementById('fDia').value:'';
+  var filtered=notas.filter(function(n){
+    if(excludedFiliais.has(n.filial)) return false;
+    if(fMes&&n.mes!==fMes) return false;
+    return true;
+  });
+  var seen=new Set();var unique=[];
+  filtered.forEach(function(n){if(!seen.has(n.chave)){seen.add(n.chave);unique.push(n);}});
+  var modal=document.getElementById('nfeModal');
+  if(!modal)return;
+  document.getElementById('modalTitle').textContent=desc+' — '+unique.length+' nota(s)';
+  document.getElementById('modalBody').innerHTML=unique.map(function(n){
+    var url='https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe='+n.chave;
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e2d45">'+
+      '<div><div style="font-size:.78rem;color:#e2e8f0">'+n.data+'</div>'+
+      '<div style="font-size:.7rem;color:#64748b">'+n.loja+'</div></div>'+
+      '<div style="display:flex;gap:12px;align-items:center">'+
+      '<span style="color:#38bdf8;font-weight:600;font-size:.8rem">R$ '+n.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>'+
+      '<a href="'+url+'" target="_blank" style="font-size:1.1rem;text-decoration:none">🔗</a>'+
+      '</div></div>';
+  }).join('');
+  modal.style.display='flex';
+}
 </script>
+
+<div id="nfeModal" style="display:none;position:fixed;inset:0;background:#000a;z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#111827;border:1px solid #1e2d45;border-radius:14px;padding:24px 28px;min-width:380px;max-width:560px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 id="modalTitle" style="font-size:.9rem;color:#e2e8f0"></h3>
+      <button onclick="document.getElementById('nfeModal').style.display='none'" style="background:none;border:none;color:#64748b;font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
 </body>
 </html>
