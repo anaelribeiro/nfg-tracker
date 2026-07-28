@@ -348,9 +348,6 @@ function buildFilialList(filter){
   }).join('');
   document.getElementById('filialList').innerHTML=html;
 }
-buildFilialList();
-updateFilialUI();
-
 function filterFilialList(q){buildFilialList(q);}
 function toggleFilial(cb){
   if(cb.checked) excludedFiliais.delete(cb.value);
@@ -372,14 +369,6 @@ function updateFilialUI(){
 }
 function removeFilial(f){
   excludedFiliais.delete(f); // reincluir
-  // inicializa gráficos com dados do Sheets
-  mkBar('cMes',LAB_MES_I,VAL_MES_I);
-  mkDonut('cLojas',LAB_LOJAS_I,VAL_LOJAS_I);
-  mkBar('cMuni',LAB_MUNI,VAL_MUNI,'#a78bfa',true);
-  mkDonut('cCatPie',LAB_CAT,VAL_CAT);
-  mkBar('cFiliais',LAB_FILIAIS_I,VAL_FILIAIS_I,'#34d399',true);
-  mkBar('cCatMes',MESES_ALL,STACKED_SETS);
-  mkBar('cDia',LAB_DIA_I,VAL_DIA_I,'#facc15');
   buildFilialList(); updateFilialUI(); applyFilters();
 }
 function toggleFilialPanel(e){
@@ -414,12 +403,7 @@ function renderCatCards(data){
       '<div class="cat-pct">'+(val/tot*100).toFixed(1)+'% do total</div></div>';
   }).join('');
 }
-var catTotals={};
-ALL_ITENS.forEach(function(r){catTotals[r.cat]=(catTotals[r.cat]||0)+r.val;});
-renderCatCards(catTotals);
-
-// aplica filtros na carga (Macromix João Correia já vem excluído por padrão)
-applyFilters();
+// catTotals e applyFilters chamados em initDashboard()
 
 var activeCat='';
 function filterByCat(cat){
