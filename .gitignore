@@ -7,3 +7,4 @@ data/cnpj_enderecos.json
 __pycache__/
 *.pyc
 *.log
+data/dados.js
