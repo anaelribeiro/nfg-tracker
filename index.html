@@ -340,10 +340,13 @@ tr:hover td{background:#0d1320}
       pn[r.desc].push({chave:r.chave,data:r.data,loja:r.loja_c,filial:r.filial,mes:r.mes,val:r.val});
     });
     window.PROD_NOTAS=pn;
-    
-    // dispara inicialização
+
+    // dispara inicialização após script principal terminar
     document.getElementById('loadingMsg').style.display='none';
-    if(typeof initDashboard==='function') initDashboard();
+    setTimeout(function(){
+      if(typeof initDashboard==='function') initDashboard();
+      else { var t=setInterval(function(){if(typeof initDashboard==='function'){clearInterval(t);initDashboard();}},100); }
+    },0);
   }
 
   // mostra loading enquanto carrega
