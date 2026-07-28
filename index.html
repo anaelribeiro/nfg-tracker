@@ -270,6 +270,9 @@ tr:hover td{background:#0d1320}
     window.MESES_ALL=window.LAB_MES_I.slice();window.LAB_CAT=[];window.VAL_CAT=[];window.CATS_FULL=[];window.CAT_MES_DATA={};window.STACKED_SETS=[];
     window.LOJAS_LIST=Object.keys(bL).sort();window.MESES_LIST=window.LAB_MES_I.slice();window.MUNI_LIST=Object.keys(bN).sort();
     window.FILIAIS_LIST=window.LAB_LOJAS_I.slice();window.CATS_LIST=[];
+    var dias=Object.entries(bM).sort(function(a,b){return a[0].localeCompare(b[0]);});
+    window.LAB_DIA_I=dias.map(function(x){return x[0];});
+    window.VAL_DIA_I=dias.map(function(x){return +x[1].toFixed(2);});
     window.TOTAL_GASTO=+window.ALL_ITENS.reduce(function(s,r){return s+r.val;},0).toFixed(2);
     var pn={};window.ALL_ITENS.forEach(function(r){if(!pn[r.desc])pn[r.desc]=[];pn[r.desc].push({chave:r.chave,data:r.data,loja:r.loja_c,filial:r.filial,mes:r.mes,val:r.val});});
     window.PROD_NOTAS=pn;
@@ -693,8 +696,7 @@ function updateAnalises(filtered){
   }).join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade significativa identificada no período filtrado.</div>';
 }
 
-// inicializa com os dados filtrados
-updateAnalises(ALL_ITENS.filter(function(r){return !excludedFiliais.has(r.filial);}));
+// updateAnalises chamado em initDashboard
 
 function initDashboard(){
   LOJAS_LIST.forEach(function(l){document.getElementById('fLoja').add(new Option(l,l));});
