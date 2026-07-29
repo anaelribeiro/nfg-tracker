@@ -162,9 +162,10 @@ def extrair_nota_sefaz(chave):
     # modelo está na posição 20-21 da chave (0-indexed)
     modelo = chave[20:22] if len(chave) >= 22 else "65"
     if modelo == "55":
-        url_sefaz = f"https://www.sefaz.rs.gov.br/NFE/NFE-NFE.aspx?chaveNFe={chave}"
-    else:
-        url_sefaz = f"https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe={chave}"
+        # NF-e modelo 55 (e-commerce) não tem página pública no SEFAZ RS
+        return {"cabecalho": {"numero":"","serie":"","emissao":"","hora":"","cnpj":"",
+                              "valor_total":"","desconto":"0,00","pagamento":"","tipo":"NF-e"},
+                "itens": []}
 
     try:
         from selenium import webdriver
@@ -187,7 +188,7 @@ def extrair_nota_sefaz(chave):
             service=Service(ChromeDriverManager().install()), options=opts)
 
         try:
-            driver.get(url_sefaz)
+            driver.get(f"https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe={chave}")
             time.sleep(1.5)
             try: Alert(driver).accept(); time.sleep(0.5)
             except: pass
@@ -207,6 +208,12 @@ def extrair_nota_sefaz(chave):
             time.sleep(3.0)
 
             body = driver.find_element(By.TAG_NAME, "body").text
+
+            # nota cancelada — sem itens mas marca como processada
+            if "232" in body and "cancelad" in body.lower():
+                return {"cabecalho": {"numero":"","serie":"","emissao":"","hora":"","cnpj":"",
+                                      "valor_total":"","desconto":"0,00","pagamento":"","tipo":"NFC-e cancelada"},
+                        "itens": []}
 
             # cabeçalho
             cab = {}
@@ -238,25 +245,23 @@ def extrair_nota_sefaz(chave):
             elif "NF-e" in body: cab["tipo"] = "NF-e"
             else: cab["tipo"] = ""
 
-            # itens via JS (primeira tabela)
+            # itens via JS — encontra tabela cujo header tem "Código" exato na 1ª célula
             rows_data = driver.execute_script("""
-                var tables=document.querySelectorAll('table');
-                for(var i=0;i<tables.length;i++){
-                    var rows=tables[i].querySelectorAll('tr');
-                    var hasItem=false;
-                    for(var j=0;j<rows.length;j++){
-                        var tds=rows[j].querySelectorAll('td');
-                        if(tds.length>=5&&/^\\d+$/.test(tds[0].innerText.trim())){hasItem=true;break;}
-                    }
-                    if(hasItem){
-                        var result=[];
-                        for(var j=0;j<rows.length;j++){
-                            var tds=rows[j].querySelectorAll('td');
-                            if(tds.length>=5&&/^\\d+$/.test(tds[0].innerText.trim())){
-                                result.push(Array.from(tds).slice(0,6).map(function(td){return td.innerText.trim();}));
+                var ts = document.querySelectorAll("table");
+                for (var i = 0; i < ts.length; i++) {
+                    var trs = ts[i].querySelectorAll("tr");
+                    if (trs.length < 2) continue;
+                    var first = trs[0].querySelectorAll("td");
+                    var h0 = first.length > 0 ? first[0].innerText.trim() : "";
+                    if (h0 === "Código" || h0 === "Codigo") {
+                        var res = [];
+                        for (var j = 1; j < trs.length; j++) {
+                            var tds = trs[j].querySelectorAll("td");
+                            if (tds.length >= 5 && tds[0].innerText.trim().length > 0) {
+                                res.push(Array.from(tds).slice(0,6).map(function(td){ return td.innerText.trim(); }));
                             }
                         }
-                        return result;
+                        if (res.length > 0) return res;
                     }
                 }
                 return [];
@@ -370,8 +375,9 @@ def main():
                 filiais_novas[cnpj] = filial
                 time.sleep(0.4)
 
-        # monta linhas
-        for item in itens:
+        # monta linhas — se sem itens, grava linha de cabeçalho para marcar chave como processada
+        itens_para_gravar = itens if itens else [{"codigo":"","descricao":cab.get("tipo",""),"ncm":"","quantidade":"","unidade":"","valor_unit":"","valor_total":""}]
+        for item in itens_para_gravar:
             linhas_itens.append([
                 chave,
                 cab.get("numero",""),
