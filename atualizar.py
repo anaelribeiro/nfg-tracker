@@ -62,33 +62,20 @@ def novo_driver(headless=True):
 
 # ── Passo 1: verifica sessão NFG ─────────────────────────────────────────────
 
-def sessao_ativa():
-    jar = browser_cookie3.chrome(domain_name="sefaz.rs.gov.br")
-    session = requests.Session()
-    for c in jar:
-        session.cookies.set(c.name, c.value, domain=c.domain, path=c.path)
-    hdrs = {"User-Agent": "Mozilla/5.0"}
-    try:
-        r = session.get("https://nfg.sefaz.rs.gov.br/cadastro/ConsultaDocumentos.aspx",
-                        verify=False, headers=hdrs, timeout=8)
-        return "ConsultaDocumentos" in r.url
-    except:
-        return False
-
-def pedir_login():
-    print("\n[!] Sessão NFG expirada. Abrindo Chrome para login...")
-    print("    Faça login com GOV.BR e aguarde fechar automaticamente.\n")
+def fazer_login():
+    """Sempre abre o Chrome para o usuário fazer login no GOV.BR."""
+    print("\n[*] Abrindo Chrome para login no NFG (GOV.BR)...")
+    print("    Faça login com seu CPF e senha. O script continua automaticamente.\n")
     driver = novo_driver(headless=False)
-    wait_time = 300
     from selenium.webdriver.support.ui import WebDriverWait
-    wait = WebDriverWait(driver, wait_time)
+    wait = WebDriverWait(driver, 300)
     try:
         driver.get("https://nfg.sefaz.rs.gov.br/govbr-redirect.aspx")
         wait.until(lambda d: "nfg.sefaz.rs.gov.br" in d.current_url
                               and "govbr" not in d.current_url
                               and "sso.acesso" not in d.current_url
                               and "Login" not in d.current_url)
-        print("[✓] Login detectado!")
+        print("[✓] Login detectado! Continuando...")
         time.sleep(1)
     finally:
         driver.quit()
@@ -314,14 +301,9 @@ def main():
                 chaves_conhecidas.add(row["chave"])
     print(f"[*] Notas já registradas: {len(chaves_conhecidas)}")
 
-    # passo 1: verifica login
-    print("[1/4] Verificando sessão NFG...")
-    if not sessao_ativa():
-        pedir_login()
-        if not sessao_ativa():
-            print("[!] Login falhou.")
-            return
-    print("      Sessão OK")
+    # passo 1: login (sempre pedido)
+    print("[1/4] Login no NFG...")
+    fazer_login()
 
     # passo 2: busca notas
     print("[2/4] Buscando notas no portal NFG...")
