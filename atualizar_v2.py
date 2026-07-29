@@ -20,6 +20,7 @@ BASE_DIR        = Path(__file__).parent
 CHROME_BIN      = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 SHEET_ID        = "1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpfWeHAm8_wBt-r6LVkCCXVTP3AyygtOTV1Dif7iIiJU712yGwV2_hybAwmJQzcgZ3-Q/exec"
+FILIAIS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSa-dNrsETRbxEi0I6GIoFc6J6Hd2Tpm7w1Yo4kORWwyIauS4kcWDX20wxpkA5mfRTQHvW9fg-WFN72/pub?gid=1900593584&single=true&output=csv"
 
 # Colunas da aba itens (v2)
 CAMPOS_ITENS = [
@@ -69,7 +70,7 @@ def sheets_get_chaves():
 
 def sheets_get_cnpjs_filiais():
     """Retorna set de CNPJs já na aba filiais."""
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=filiais"
+    url = FILIAIS_CSV_URL
     try:
         r = requests.get(url, timeout=10)
         if r.status_code != 200: return set()
