@@ -86,6 +86,12 @@ body.light tr:hover td{background:#f8fafc}
 .modal-box{background:#111827;border:1px solid #1e2d45;border-radius:14px;padding:24px 28px;min-width:380px;max-width:580px;max-height:80vh;overflow-y:auto}
 /* scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:#0f1420}::-webkit-scrollbar-thumb{background:#1e2d45;border-radius:3px}
+/* abas */
+.tabs{display:flex;gap:6px;margin:12px 0 14px;flex-wrap:wrap}
+.tab-btn{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 16px;font-size:.78rem;cursor:pointer;transition:background .15s}
+.tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
 @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.main{padding:12px 14px}.topbar{padding:10px 14px}.topbar h1{font-size:.95rem}.cards{gap:8px}.card{min-width:calc(50% - 4px);padding:12px 14px}.card .val{font-size:1.35rem}.grid4{grid-template-columns:1fr 1fr}.fgrp select,.fgrp input[type=text]{min-width:0;width:100%}canvas{max-height:180px}table{font-size:.68rem}th,td{padding:5px 6px}.desc-td{max-width:120px}.loja-mini,.date-td{display:none}}
 </style>
@@ -147,30 +153,39 @@ body.light tr:hover td{background:#f8fafc}
   </div>
 </div>
 
-<!-- categorias -->
+<!-- abas -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('resumo',this)">Resumo</button>
+  <button class="tab-btn" onclick="showTab('gastos',this)">Gastos</button>
+  <button class="tab-btn" onclick="showTab('padroes',this)">Padrões</button>
+  <button class="tab-btn" onclick="showTab('produtos',this)">Produtos</button>
+  <button class="tab-btn" onclick="showTab('analises',this)">Análises</button>
+</div>
+
+<!-- tab: resumo -->
+<div class="tab-pane active" id="tab-resumo">
 <div class="section-title">Gastos por categoria</div>
 <div class="grid4" id="catGrid"></div>
-
 <div class="grid2">
   <div class="box"><h2>Evolução por categoria (R$)</h2><canvas id="cCatMes"></canvas></div>
   <div class="box"><h2>Distribuição</h2><canvas id="cCatPie"></canvas></div>
 </div>
-
-<!-- temporal -->
-<div class="section-title">Temporal & Lojas</div>
 <div class="grid2">
   <div class="box"><h2>Gastos por mês (R$)</h2><canvas id="cMes"></canvas></div>
-  <div class="box"><h2>Top redes</h2><canvas id="cLojas"></canvas></div>
+</div>
 </div>
 
-<!-- filiais & geo -->
+<!-- tab: gastos -->
+<div class="tab-pane" id="tab-gastos">
+<div class="section-title">Temporal & Lojas</div>
+<div class="grid2">
+  <div class="box"><h2>Top redes</h2><canvas id="cLojas"></canvas></div>
+</div>
 <div class="section-title">Filiais & Municípios</div>
 <div class="grid2">
   <div class="box"><h2>Por filial</h2><canvas id="cFiliais"></canvas></div>
   <div class="box"><h2>Por município</h2><canvas id="cMuni"></canvas></div>
 </div>
-
-<!-- consolidado por dia -->
 <div class="section-title">Consolidado por dia</div>
 <div class="grid2">
   <div class="box"><h2>Gastos por dia</h2><canvas id="cDia"></canvas></div>
@@ -182,8 +197,10 @@ body.light tr:hover td{background:#f8fafc}
     </div>
   </div>
 </div>
+</div>
 
-<!-- padrões -->
+<!-- tab: padroes -->
+<div class="tab-pane" id="tab-padroes">
 <div class="section-title">Padrões de compra</div>
 <div class="grid2">
   <div class="box"><h2>Horário de compras (R$)</h2><canvas id="cHora"></canvas></div>
@@ -193,26 +210,10 @@ body.light tr:hover td{background:#f8fafc}
   <div class="box"><h2>Forma de pagamento</h2><canvas id="cPgto"></canvas></div>
   <div class="box"><h2>Tipo de nota</h2><canvas id="cTipo"></canvas></div>
 </div>
-
-<!-- análise nutricional -->
-<div class="section-title">Análise Inteligente</div>
-<div class="grid2">
-  <div class="box">
-    <h2>Saúde alimentar</h2>
-    <canvas id="cNutri" style="max-height:180px"></canvas>
-    <div style="text-align:center;margin-top:10px">
-      <div style="font-size:2.2rem;font-weight:700" id="nutriScore">—</div>
-      <div style="font-size:.7rem;color:var(--muted)" id="nutriLabel">calculando...</div>
-    </div>
-  </div>
-  <div class="box"><h2>Insights</h2><div id="insightsList"></div></div>
-</div>
-<div class="box" style="margin-bottom:14px">
-  <h2>Oportunidades de economia</h2>
-  <div id="ecoList"></div>
 </div>
 
-<!-- produtos -->
+<!-- tab: produtos -->
+<div class="tab-pane" id="tab-produtos">
 <div class="section-title">Detalhamento de produtos</div>
 <div class="box">
   <h2>Produtos <em id="lblProd" style="color:var(--text);font-style:normal;font-size:.7rem"></em></h2>
@@ -237,6 +238,27 @@ body.light tr:hover td{background:#f8fafc}
     <span style="color:var(--muted)">Subtotal: <span id="subCount" style="color:var(--text);font-weight:600"></span> produtos</span>
     <span style="color:var(--blue);font-weight:700;font-size:.9rem">R$ <span id="subTotal"></span></span>
   </div>
+</div>
+</div>
+
+<!-- tab: analises -->
+<div class="tab-pane" id="tab-analises">
+<div class="section-title">Análise Inteligente</div>
+<div class="grid2">
+  <div class="box">
+    <h2>Saúde alimentar</h2>
+    <canvas id="cNutri" style="max-height:180px"></canvas>
+    <div style="text-align:center;margin-top:10px">
+      <div style="font-size:2.2rem;font-weight:700" id="nutriScore">—</div>
+      <div style="font-size:.7rem;color:var(--muted)" id="nutriLabel">calculando...</div>
+    </div>
+  </div>
+  <div class="box"><h2>Insights</h2><div id="insightsList"></div></div>
+</div>
+<div class="box" style="margin-bottom:14px">
+  <h2>Oportunidades de economia</h2>
+  <div id="ecoList"></div>
+</div>
 </div>
 
 </div><!-- /main -->
@@ -762,6 +784,14 @@ function updateAnalises(f){
       '<div class="eco-save">~R$ '+e.save+'/mes</div></div>';
   });
   document.getElementById('ecoList').innerHTML=ecoItems.length?ecoItems.join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade significativa identificada.</div>';
+}
+
+// ── Abas ──────────────────────────────────────────────────────────
+function showTab(id,btn){
+  document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
 }
 
 // ── Tema ──────────────────────────────────────────────────────────
