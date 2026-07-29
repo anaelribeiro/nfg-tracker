@@ -63,22 +63,17 @@ def novo_driver(headless=True):
 # ── Passo 1: verifica sessão NFG ─────────────────────────────────────────────
 
 def fazer_login():
-    """Sempre abre o Chrome para o usuário fazer login no GOV.BR."""
+    """Abre o Chrome normal (não Selenium) para login no GOV.BR."""
+    import subprocess as sp
     print("\n[*] Abrindo Chrome para login no NFG (GOV.BR)...")
-    print("    Faça login com seu CPF e senha. O script continua automaticamente.\n")
-    driver = novo_driver(headless=False)
-    from selenium.webdriver.support.ui import WebDriverWait
-    wait = WebDriverWait(driver, 300)
-    try:
-        driver.get("https://nfg.sefaz.rs.gov.br/govbr-redirect.aspx")
-        wait.until(lambda d: "nfg.sefaz.rs.gov.br" in d.current_url
-                              and "govbr" not in d.current_url
-                              and "sso.acesso" not in d.current_url
-                              and "Login" not in d.current_url)
-        print("[✓] Login detectado! Continuando...")
-        time.sleep(1)
-    finally:
-        driver.quit()
+    print("    Faça login normalmente e depois pressione ENTER aqui.\n")
+
+    # abre Chrome normal — sem Selenium, sem detecção de bot
+    sp.Popen(["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+              "https://nfg.sefaz.rs.gov.br/govbr-redirect.aspx"])
+
+    input("    [Pressione ENTER após concluir o login no Chrome] ")
+    print("[✓] Continuando...")
 
 # ── Passo 2: busca notas novas via AJAX ──────────────────────────────────────
 
