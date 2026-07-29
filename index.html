@@ -600,6 +600,7 @@ function applyFilters(){
 
   // análise inteligente
   updateAnalises(f);
+  filterTable();
 }
 
 // ── Categoria cards ───────────────────────────────────────────────
@@ -719,11 +720,9 @@ function filterTable(){
     if(show){sub+=parseFloat(tr.dataset.total)||0;cnt++;}
   });
   var bar=document.getElementById('tblSubtotal');
-  if(q){
-    bar.style.display='flex';
-    document.getElementById('subCount').textContent=cnt;
-    document.getElementById('subTotal').textContent=sub.toLocaleString('pt-BR',{minimumFractionDigits:2});
-  }else{bar.style.display='none';}
+  bar.style.display='flex';
+  document.getElementById('subCount').textContent=cnt;
+  document.getElementById('subTotal').textContent=sub.toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
 var sortDir={};
 function sortTable(col){
