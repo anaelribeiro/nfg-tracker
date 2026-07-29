@@ -69,19 +69,11 @@ def sheets_get_chaves():
         return set()
 
 def sheets_get_cnpjs_filiais():
-    """Retorna set de CNPJs já na aba filiais."""
-    url = FILIAIS_CSV_URL
+    """Retorna set de CNPJs já na aba filiais via Apps Script doGet (sem cache)."""
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(APPS_SCRIPT_URL + "?aba=filiais", timeout=15)
         if r.status_code != 200: return set()
-        text = r.text.replace('\r\n', '\n').replace('\r', '\n')
-        lines = text.strip().split('\n')
-        cnpjs = set()
-        for line in lines[1:]:
-            if line.strip():
-                cnpj = line.split(',')[0].replace('"','').strip()
-                if cnpj: cnpjs.add(cnpj)
-        return cnpjs
+        return set(r.json())
     except:
         return set()
 
