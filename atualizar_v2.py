@@ -154,11 +154,18 @@ def buscar_notas_nfg():
 
 def extrair_nota_sefaz(chave):
     """
-    Abre a página NFC-e no SEFAZ, clica Avançar e extrai:
-    - cabeçalho: número, série, data/hora, CNPJ, valor total, desconto, pagamento
-    - itens: código, descrição, NCM, qtd, unidade, valor unit, valor total
-    Retorna dict com 'cabecalho' e 'itens'.
+    Extrai cabeçalho + itens de uma nota no SEFAZ.
+    - Modelo 65 (NFC-e): NFE-NFC.aspx → iframe → Avançar
+    - Modelo 55 (NF-e): NFE-NFE.aspx → iframe → Avançar
+    Retorna dict com 'cabecalho' e 'itens', ou None em caso de erro.
     """
+    # modelo está na posição 20-21 da chave (0-indexed)
+    modelo = chave[20:22] if len(chave) >= 22 else "65"
+    if modelo == "55":
+        url_sefaz = f"https://www.sefaz.rs.gov.br/NFE/NFE-NFE.aspx?chaveNFe={chave}"
+    else:
+        url_sefaz = f"https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe={chave}"
+
     try:
         from selenium import webdriver
         from selenium.webdriver.common.by import By
@@ -180,15 +187,24 @@ def extrair_nota_sefaz(chave):
             service=Service(ChromeDriverManager().install()), options=opts)
 
         try:
-            url = f"https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe={chave}"
-            driver.get(url)
+            driver.get(url_sefaz)
             time.sleep(1.5)
             try: Alert(driver).accept(); time.sleep(0.5)
             except: pass
             driver.switch_to.frame("iframeConteudo")
             time.sleep(0.5)
-            driver.find_element(By.XPATH, "//input[@value='Avançar']").click()
-            time.sleep(2.5)
+            # tenta clicar Avançar com variações de encoding
+            clicked = False
+            for xpath in ["//input[@value='Avançar']", "//input[@value='Avançar']",
+                          "//input[contains(@value,'van')]", "//button[contains(text(),'van')]"]:
+                try:
+                    driver.find_element(By.XPATH, xpath).click()
+                    clicked = True; break
+                except: pass
+            if not clicked:
+                # já pode estar na página de detalhes sem precisar clicar
+                pass
+            time.sleep(3.0)
 
             body = driver.find_element(By.TAG_NAME, "body").text
 
