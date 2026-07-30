@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NFG Tracker v2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#090d1a;--card:#111827;--border:#1e2d45;--text:#e2e8f0;--muted:#64748b;
   --blue:#38bdf8;--green:#34d399;--purple:#a78bfa;--pink:#f472b6;--orange:#fb923c;--yellow:#facc15}
@@ -134,6 +135,7 @@ body.light tr:hover td{background:#f8fafc}
     <div class="fgrp"><label>Pagamento</label><select id="fPgto" onchange="applyFilters()"><option value="">Todos</option></select></div>
     <div class="fgrp"><label>Produto</label><input type="text" id="fProd" placeholder="buscar..." oninput="applyFilters()"></div>
     <button class="btn" onclick="resetFilters()">✕ Limpar</button>
+    <button class="btn" onclick="exportarExcel()" style="background:#164e1e;color:#34d399;border:1px solid #34d399">⬇ Excel</button>
     <div class="fstat"><span id="fCount">—</span> itens · R$ <span id="fTotal" style="color:var(--blue);font-weight:600">—</span></div>
   </div>
   <div class="filters-row">
@@ -783,6 +785,62 @@ function updateAnalises(f){
       '<div class="eco-save">~R$ '+e.save+'/mes</div></div>';
   });
   document.getElementById('ecoList').innerHTML=ecoItems.length?ecoItems.join(''):'<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Nenhuma oportunidade significativa identificada.</div>';
+}
+
+// ── Exportar Excel ────────────────────────────────────────────────
+function exportarExcel(){
+  var f=getFiltered();
+  if(!f.length){alert('Nenhum item para exportar.');return;}
+
+  var header=['Data','Hora','Loja','Filial','Município','Nota Nº','Série','Tipo',
+              'Código','Produto','Categoria','Qualidade','Qtd','Un',
+              'Vl Unit (R$)','Vl Total Item (R$)','Vl Total Nota (R$)','Desconto (R$)','Pagamento'];
+
+  var rows=f.map(function(r){
+    return [
+      r.emissao, r.hora, r.loja, r.filial, r.muni,
+      r.numero, r.serie, r.tipo,
+      r.codigo, r.desc, r.cat,
+      r.nutri==='ultra'?'Ultraprocessado':r.nutri==='saud'?'Saudável':'Neutro',
+      r.qtd, r.un,
+      r.val_unit, r.val,
+      r.valor_total_nota, r.desconto, r.pagamento
+    ];
+  });
+
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet([header].concat(rows));
+
+  // larguras das colunas
+  ws['!cols']=[
+    {wch:12},{wch:10},{wch:28},{wch:42},{wch:16},
+    {wch:10},{wch:6},{wch:8},
+    {wch:12},{wch:38},{wch:16},{wch:16},
+    {wch:8},{wch:5},
+    {wch:14},{wch:16},{wch:16},{wch:12},{wch:20}
+  ];
+
+  // estilo do cabeçalho (negrito)
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  for(var c=range.s.c;c<=range.e.c;c++){
+    var cell=ws[XLSX.utils.encode_cell({r:0,c:c})];
+    if(cell) cell.s={font:{bold:true},fill:{fgColor:{rgb:'1E2D45'}}};
+  }
+
+  XLSX.utils.book_append_sheet(wb,ws,'Itens');
+
+  // aba resumo por categoria
+  var byCat={};
+  f.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
+  var catRows=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+    return [e[0], +e[1].toFixed(2)];
+  });
+  var wsCat=XLSX.utils.aoa_to_sheet([['Categoria','Total (R$)']].concat(catRows));
+  wsCat['!cols']=[{wch:20},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,wsCat,'Por Categoria');
+
+  var data=new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb,'NFG_Tracker_'+data+'.xlsx');
 }
 
 // ── Abas ──────────────────────────────────────────────────────────
