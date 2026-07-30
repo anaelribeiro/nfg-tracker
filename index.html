@@ -892,13 +892,17 @@ function buildContext(){
   var notas=new Set(f.map(function(r){return r.chave;})).size;
   var meses=new Set(f.map(function(r){return r.mes;})).size||1;
 
-  var byCat={},byLoja={},byProd={},byHora={},byDow={};
+  var byCat={},byLoja={},byProd={},byHora={},byDow={},byMes={},byMesProd={};
   var DIAS_SEMANA=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   f.forEach(function(r){
     byCat[r.cat]=(byCat[r.cat]||0)+r.val;
     byLoja[r.loja]=(byLoja[r.loja]||0)+r.val;
     byProd[r.desc]=(byProd[r.desc]||{total:0,n:0});
     byProd[r.desc].total+=r.val; byProd[r.desc].n+=1;
+    byMes[r.mes]=(byMes[r.mes]||0)+r.val;
+    if(!byMesProd[r.mes])byMesProd[r.mes]={};
+    byMesProd[r.mes][r.desc]=(byMesProd[r.mes][r.desc]||{total:0,n:0});
+    byMesProd[r.mes][r.desc].total+=r.val; byMesProd[r.mes][r.desc].n+=1;
     if(r.hora){var h=parseInt(r.hora.split(':')[0]);if(h>=0)byHora[h]=(byHora[h]||0)+r.val;}
     try{var p=r.emissao.split('/'),yr=parseInt(p[2])<100?2000+parseInt(p[2]):parseInt(p[2]);
       var dw=new Date(yr,parseInt(p[1])-1,parseInt(p[0])).getDay();
@@ -915,6 +919,12 @@ function buildContext(){
     .map(function(e){return e[0]+'h: R$'+e[1].toFixed(2);}).join(', ');
   var topDow=Object.entries(byDow).sort(function(a,b){return b[1]-a[1];})
     .map(function(e){return e[0]+': R$'+e[1].toFixed(2);}).join(', ');
+  var resumoMes=Object.entries(byMes).sort(function(a,b){return a[0].localeCompare(b[0]);})
+    .map(function(e){
+      var top3=Object.entries(byMesProd[e[0]]||{}).sort(function(a,b){return b[1].total-a[1].total;}).slice(0,3)
+        .map(function(p){return p[0]+' ('+p[1].n+'x)';}).join(', ');
+      return e[0]+': R$'+e[1].toFixed(2)+(top3?' | top: '+top3:'');
+    }).join('\n  ');
 
   var filtros=[];
   var fMes=document.getElementById('fMes').value;
@@ -933,6 +943,7 @@ function buildContext(){
     '- Horários com mais gasto: '+topHoras+'\n'+
     '- Dias da semana com mais gasto: '+topDow+'\n'+
     '- Produtos mais comprados: '+topProds+'\n'+
+    '- Gasto por mês (com top 3 produtos):\n  '+resumoMes+'\n'+
     'Responda em português, de forma concisa e direta. Quando citar valores use R$ com vírgula.';
 }
 
