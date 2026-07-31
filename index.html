@@ -370,6 +370,7 @@ body.light tr:hover td{background:#f8fafc}
   <div class="filters-row">
     <div class="fgrp"><label>Mês</label><select id="fpMes" onchange="applyPix()"><option value="">Todos</option></select></div>
     <div class="fgrp"><label>Banco origem</label><select id="fpBanco" onchange="applyPix()"><option value="">Todos</option></select></div>
+    <div class="fgrp"><label>Categoria</label><select id="fpCat" onchange="applyPix()"><option value="">Todas</option></select></div>
     <div class="fgrp"><label>Buscar</label><input type="text" id="fpBusca" placeholder="destinatário..." oninput="applyPix()" style="min-width:160px"></div>
     <button class="btn" onclick="document.getElementById('fpMes').value='';document.getElementById('fpBanco').value='';document.getElementById('fpBusca').value='';applyPix()">✕ Limpar</button>
     <div class="fstat"><span id="fpCount">—</span> PIX · R$ <span id="fpTotal" style="color:var(--blue);font-weight:600">—</span></div>
@@ -378,6 +379,10 @@ body.light tr:hover td{background:#f8fafc}
 <div class="grid2" style="margin-bottom:14px">
   <div class="box"><h2>PIX por mês (R$)</h2><canvas id="cPixMes"></canvas></div>
   <div class="box"><h2>Por banco origem</h2><canvas id="cPixBanco"></canvas></div>
+</div>
+<div class="box" style="margin-bottom:14px">
+  <h2>Por categoria (R$) <span style="font-size:.65rem;color:var(--muted);font-weight:400">— clique para filtrar</span></h2>
+  <canvas id="cPixCat" style="max-height:280px;cursor:pointer"></canvas>
 </div>
 <div class="box" style="margin-bottom:14px">
   <h2>Top destinatários (R$) <span style="font-size:.65rem;color:var(--muted);font-weight:400">— clique para filtrar</span></h2>
@@ -390,6 +395,7 @@ body.light tr:hover td{background:#f8fafc}
       <thead><tr>
         <th>Data</th>
         <th>Destinatário</th>
+        <th>Categoria</th>
         <th>Banco destino</th>
         <th>Banco origem</th>
         <th class="money">Valor R$</th>
@@ -588,8 +594,37 @@ function buildCartaoFromDB(rows){
   buildCartao(adapted);
 }
 
+// ── Categorias de PIX ─────────────────────────────────────────────
+var CAT_PIX={
+  '🔨 Obras/Reforma':['rafael de oliveira rabelo','rafael','dione da rosa bock','madeireira adrianna','euro tintas','madeire','pix qrs madeireira','pix qrs euro tintas','transfer\xe9ncia enviada pelo pix - madeire'],
+  '🚗 Veículos/Mecânica':['ana silvia da silva ferreira','ana sil','odete ferreira','alexandre carvalho da silva sandri','alexand','pix qrs samer'],
+  '⛽ Combustível/Gás':['baratao combustiveis','pix qrs baratao com','pix qrs unigas','deposito de gas','baratao tecnologia'],
+  '🍔 Delivery/Alimentação':['99 food','pix qrs 99 food','ifood','tche ofertas','pix qrs tche oferta','zamp s.a.','pix qrs zamp'],
+  '🛍️ Compras Online':['pix qrs mercado pag','magalupay','pix qrs magalupay','pix qrs loja electr','pichau informatica','lg box','pix qrs dariush mob','pix qrs moveis kapp','pix qrs global dist','pix qrs petsupermar','mercado pago instituicao','shpp brasil'],
+  '💑 Namorada':['daniele de matos vieira','daniele','ana laura de matos vieira'],
+  '👨‍👩‍👧 Família':['paulo dos santos ribeiro','paulo d','rochele dos santos ribeiro','jair se','jair serafim ribeiro'],
+  '⛪ Igreja/Doação':['associacao antonio vieira','pix qrs associacao','centro espiritual boa nova','eu salvo vidas','antonio felicio sarmento'],
+  '🔌 Energia/Luz':['rge'],
+  '📡 Internet/Tel':['telefonica brasil','telefonica bras'],
+  '💳 Serviços/Assinaturas':['cappta','kotas','unlimint','cardpay','galindo treinamentos','erss negocios','multidisplay','ciabra','facebook servicos','99 tecnologia'],
+  '🐾 Pet':['pet center','ciavet','pix qrs pet center','pix qrs petsupermar','petsupermarket'],
+  '💊 Saúde':['pix qrs rd saude','rd saude','transfer\xe9ncia enviada pelo pix - clamed','clamed'],
+  '🏛️ Taxas/Governo':['pix qrs sefaz','pix qrs detran rs','pix qrs municipio d'],
+  '🔧 Serviços Gerais':['elias rohr oliveira','anderson felipe','adailto','nilton','maycon','deivid jenisch','deividi luis','jerferson novais','sergio pablo','rosane','antonio luiz tessaro','paulo eduardo da rosa','luisiane de oliveira','transfer\xe9ncia enviada pelo pix - sergio','transfer\xe9ncia enviada pelo pix - deivid','transfer\xe9ncia enviada pelo pix - luan','transfer\xe9ncia enviada pelo pix - rudimar','transfer\xe9ncia enviada pelo pix - lorena','transfer\xe9ncia enviada pelo pix - aline e','maiara kellermann','carlos henrique','hitler kleber','robson de souza'],
+};
+function classPix(dest){
+  if(!dest)return'❓ Outros';
+  var d=dest.toLowerCase();
+  var cats=Object.keys(CAT_PIX);
+  for(var i=0;i<cats.length;i++){
+    var kws=CAT_PIX[cats[i]];
+    for(var j=0;j<kws.length;j++)if(d.indexOf(kws[j])>=0)return cats[i];
+  }
+  return'❓ Outros';
+}
+
 function buildPixFromDB(rows){
-  ALL_PIX=rows;
+  ALL_PIX=rows.map(function(r){return Object.assign({},r,{cat:classPix(r.destinatario||'')});});
   // popula select de meses na aba PIX se existir
   var sel=document.getElementById('fpMes');
   if(!sel)return;
@@ -1362,6 +1397,7 @@ function applyFatura(){
 function applyPix(){
   var mes=document.getElementById('fpMes').value;
   var banco=document.getElementById('fpBanco').value;
+  var cat=document.getElementById('fpCat').value;
   var busca=(document.getElementById('fpBusca').value||'').toLowerCase();
 
   var f=ALL_PIX.filter(function(r){
@@ -1369,6 +1405,7 @@ function applyPix(){
     var rMes=p[2]+'-'+p[1];
     return (!mes||rMes===mes)&&
            (!banco||r.banco===banco)&&
+           (!cat||r.cat===cat)&&
            (!busca||(r.destinatario||'').toLowerCase().includes(busca));
   });
 
@@ -1399,6 +1436,23 @@ function applyPix(){
   var bancos=Object.entries(byBanco).sort(function(a,b){return b[1]-a[1];});
   mkDonut('cPixBanco',bancos.map(function(x){return x[0];}),bancos.map(function(x){return +x[1].toFixed(2);}));
 
+  // gráfico por categoria
+  var byCat={};
+  f.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+(parseFloat(r.valor)||0);});
+  var catSorted=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
+  if(charts['cPixCat'])charts['cPixCat'].destroy();
+  charts['cPixCat']=new Chart(document.getElementById('cPixCat'),{type:'bar',
+    data:{labels:catSorted.map(function(x){return x[0];}),datasets:[{data:catSorted.map(function(x){return +x[1].toFixed(2);}),backgroundColor:COLORS,borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2});}}}},
+      onClick:function(_,els){
+        if(!els.length)return;
+        var selCat=document.getElementById('fpCat');
+        var cat=catSorted[els[0].index][0];
+        selCat.value=selCat.value===cat?'':cat;
+        applyPix();
+      },
+      scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e2536'}},y:{ticks:{color:'#475569'},grid:{color:'#1e2536'}}}}});
+
   // gráfico top destinatários
   var byDest={};
   f.forEach(function(r){var d=(r.destinatario||'Desconhecido').substring(0,30);byDest[d]=(byDest[d]||0)+(parseFloat(r.valor)||0);});
@@ -1420,7 +1474,8 @@ function applyPix(){
   document.getElementById('tblPix').innerHTML=fSorted.map(function(r){
     return '<tr>'+
       '<td class="date-td">'+(r.data||'')+'</td>'+
-      '<td class="desc-td" title="'+(r.destinatario||'')+'">'+(r.destinatario||'').substring(0,35)+'</td>'+
+      '<td class="desc-td" title="'+(r.destinatario||'')+'">'+(r.destinatario||'').substring(0,30)+'</td>'+
+      '<td style="font-size:.72rem;white-space:nowrap">'+(r.cat||'')+'</td>'+
       '<td style="font-size:.7rem;color:var(--muted)">'+(r.banco_dest||'').substring(0,25)+'</td>'+
       '<td style="font-size:.7rem;color:var(--muted)">'+(r.banco||'')+'</td>'+
       '<td class="money">R$ '+parseFloat(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
@@ -1471,6 +1526,10 @@ function initDashboard(){
   var bancos=new Set(ALL_PIX.map(function(r){return r.banco;}));
   var selB=document.getElementById('fpBanco');
   if(selB)Array.from(bancos).sort().forEach(function(b){selB.add(new Option(b,b));});
+  // select categorias PIX
+  var catsPix=Object.keys(CAT_PIX).concat(['❓ Outros']);
+  var selCatP=document.getElementById('fpCat');
+  if(selCatP)catsPix.forEach(function(c){selCatP.add(new Option(c,c));});
   var mesesPix=Array.from(new Set(ALL_PIX.map(function(r){var p=(r.data||'').split('/');return p[2]+'-'+p[1];}))).sort();
   var selMP=document.getElementById('fpMes');
   if(selMP){
