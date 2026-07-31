@@ -198,6 +198,7 @@ body.light tr:hover td{background:#f8fafc}
   <button class="tab-btn" onclick="showTab('padroes',this)">Padrões</button>
   <button class="tab-btn" onclick="showTab('produtos',this)">Produtos</button>
   <button class="tab-btn" onclick="showTab('analises',this)">Análises</button>
+  <button class="tab-btn" onclick="showTab('fatura',this)">💳 Fatura</button>
 </div>
 
 <!-- tab: resumo -->
@@ -296,6 +297,57 @@ body.light tr:hover td{background:#f8fafc}
 <div class="box" style="margin-bottom:14px">
   <h2>Oportunidades de economia</h2>
   <div id="ecoList"></div>
+</div>
+</div>
+
+<!-- tab: fatura -->
+<div class="tab-pane" id="tab-fatura">
+<div class="section-title">Fatura do Cartão vs NFG</div>
+
+<!-- KPIs fatura -->
+<div class="cards" id="faturaKpis">
+  <div class="card"><div class="lbl">Total fatura</div><div class="val" style="color:var(--pink)" id="fkTotal">—</div><div class="sub" id="fkMes">carregando...</div></div>
+  <div class="card"><div class="lbl">Rastreado NFG</div><div class="val" style="color:var(--green)" id="fkRastreado">—</div><div class="sub" id="fkRastPct">—</div></div>
+  <div class="card"><div class="lbl">Não rastreado</div><div class="val" style="color:var(--orange)" id="fkNaoRast">—</div><div class="sub" id="fkNaoRastPct">—</div></div>
+  <div class="card"><div class="lbl">Compras</div><div class="val" style="color:var(--purple)" id="fkCompras">—</div><div class="sub">lançamentos</div></div>
+</div>
+
+<!-- filtro de mês fatura -->
+<div class="filters" style="margin-bottom:14px">
+  <div class="filters-row">
+    <div class="fgrp"><label>Mês</label><select id="ffMes" onchange="applyFatura()"><option value="">Todos</option></select></div>
+    <div class="fgrp"><label>Tipo</label>
+      <select id="ffTipo" onchange="applyFatura()">
+        <option value="">Todos</option>
+        <option value="rastreado">✅ Rastreado</option>
+        <option value="nao_rastreado">❌ Não rastreado</option>
+      </select>
+    </div>
+    <div class="fgrp"><label>Buscar</label><input type="text" id="ffBusca" placeholder="estabelecimento..." oninput="applyFatura()" style="min-width:160px"></div>
+    <button class="btn" onclick="document.getElementById('ffMes').value='';document.getElementById('ffTipo').value='';document.getElementById('ffBusca').value='';applyFatura()">✕ Limpar</button>
+    <div class="fstat"><span id="ffCount">—</span> lançamentos · R$ <span id="ffTotal" style="color:var(--blue);font-weight:600">—</span></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-bottom:14px">
+  <div class="box"><h2>Rastreado vs Não rastreado (R$)</h2><canvas id="cFaturaDonut"></canvas></div>
+  <div class="box"><h2>Fatura por mês (R$)</h2><canvas id="cFaturaMes"></canvas></div>
+</div>
+
+<div class="box">
+  <h2>Lançamentos <em id="lblFatura" style="color:var(--text);font-style:normal;font-size:.7rem"></em></h2>
+  <div class="tbl-wrap" style="max-height:480px">
+    <table>
+      <thead><tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Parcelamento</th>
+        <th class="center">Status</th>
+        <th class="money">Valor R$</th>
+      </tr></thead>
+      <tbody id="tblFatura"></tbody>
+    </table>
+  </div>
 </div>
 </div>
 
@@ -415,6 +467,8 @@ function parseCSV(text){
 }
 
 // ── Carrega dados ─────────────────────────────────────────────────
+var ALL_CARTAO=[];
+
 function loadData(){
   var msg=document.createElement('div');msg.id='loadingMsg';
   msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9999;border:1px solid #1e2d45';
@@ -422,12 +476,17 @@ function loadData(){
 
   var urlItens='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/export?format=csv&sheet=itens';
   var urlFiliais='https://docs.google.com/spreadsheets/d/e/2PACX-1vSa-dNrsETRbxEi0I6GIoFc6J6Hd2Tpm7w1Yo4kORWwyIauS4kcWDX20wxpkA5mfRTQHvW9fg-WFN72/pub?gid=1900593584&single=true&output=csv';
+  var urlCartao='https://docs.google.com/spreadsheets/d/e/2PACX-1vSa-dNrsETRbxEi0I6GIoFc6J6Hd2Tpm7w1Yo4kORWwyIauS4kcWDX20wxpkA5mfRTQHvW9fg-WFN72/pub?gid=431304116&single=true&output=csv';
 
-  Promise.all([fetch(urlItens).then(function(r){return r.text();}),
-               fetch(urlFiliais).then(function(r){return r.text();})])
+  Promise.all([
+    fetch(urlItens).then(function(r){return r.text();}),
+    fetch(urlFiliais).then(function(r){return r.text();}),
+    fetch(urlCartao).then(function(r){return r.text();})
+  ])
   .then(function(results){
     buildFiliais(parseCSV(results[1]));
     buildItens(parseCSV(results[0]));
+    buildCartao(parseCSV(results[2]));
     msg.style.display='none';
     document.getElementById('loadBadge').textContent='✓ '+ALL_ITENS.length+' itens';
     document.getElementById('loadBadge').className='badge';
@@ -1026,6 +1085,118 @@ function enviarChat(){
     document.getElementById('chatSend').disabled=false;
     input.focus();
   });
+}
+
+// ── Fatura Itaú ───────────────────────────────────────────────────
+function buildCartao(rows){
+  // monta index de notas NFG por data+valor para cruzamento
+  var nfgIdx={};
+  ALL_ITENS.forEach(function(r){
+    if(!r.emissao||!r.valor_total_nota)return;
+    var p=r.emissao.split('/');
+    var base=p[2]+'-'+p[1]+'-'+p[0]+'|';
+    // índice pelo valor bruto
+    nfgIdx[base+r.valor_total_nota.toFixed(2)]=r;
+    // índice pelo valor líquido (após desconto)
+    var liquido=r.valor_total_nota-r.desconto;
+    if(liquido>0&&liquido!==r.valor_total_nota)
+      nfgIdx[base+liquido.toFixed(2)]=r;
+  });
+
+  ALL_CARTAO=rows.filter(function(r){
+    var val=parseFloat((r['Valor']||'').replace(',','.'));
+    var data=r['Data']||'';
+    // garante que Data é uma data real (DD/MM/YYYY) e não texto de cabeçalho
+    var dataOk=/^\d{2}\/\d{2}\/\d{4}$/.test(data.trim());
+    return dataOk && val>0 && r['Lançamento'] && r['Lançamento'].indexOf('Pagamento')<0;
+  }).map(function(r){
+    var val=parseFloat((r['Valor']||'').replace(',','.'));
+    // data vem como DD/MM/YYYY
+    var partes=r['Data'].split('/');
+    var key=partes[2]+'-'+partes[1]+'-'+partes[0]+'|'+val.toFixed(2);
+    var nfg=nfgIdx[key]||null;
+    var mes=partes[2]+'-'+partes[1];
+    return {
+      data:r['Data'], mes:mes,
+      desc:r['Lançamento']||'',
+      parcela:r['Parcelamento']||'',
+      val:val,
+      rastreado:!!nfg,
+      nfg:nfg
+    };
+  });
+
+  // popula select de meses
+  var meses=new Set(ALL_CARTAO.map(function(r){return r.mes;}));
+  var sel=document.getElementById('ffMes');
+  [...meses].sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
+  // seleciona mês mais recente por padrão
+  if(sel.options.length>1)sel.value=sel.options[1].value;
+
+  applyFatura();
+}
+
+function applyFatura(){
+  var mes=document.getElementById('ffMes').value;
+  var tipo=document.getElementById('ffTipo').value;
+  var busca=(document.getElementById('ffBusca').value||'').toLowerCase();
+
+  var f=ALL_CARTAO.filter(function(r){
+    return (!mes||r.mes===mes)&&
+           (!tipo||(tipo==='rastreado'?r.rastreado:!r.rastreado))&&
+           (!busca||r.desc.toLowerCase().includes(busca));
+  });
+
+  var total=f.reduce(function(s,r){return s+r.val;},0);
+  var rastreado=f.filter(function(r){return r.rastreado;}).reduce(function(s,r){return s+r.val;},0);
+  var naoRast=total-rastreado;
+
+  document.getElementById('ffCount').textContent=f.length;
+  document.getElementById('ffTotal').textContent=total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('fkTotal').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('fkMes').textContent=mes||'todos os meses';
+  document.getElementById('fkRastreado').textContent='R$ '+rastreado.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('fkRastPct').textContent=total>0?Math.round(rastreado/total*100)+'% da fatura':'—';
+  document.getElementById('fkNaoRast').textContent='R$ '+naoRast.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('fkNaoRastPct').textContent=total>0?Math.round(naoRast/total*100)+'% da fatura':'—';
+  document.getElementById('fkCompras').textContent=f.length;
+  document.getElementById('lblFatura').textContent=f.length+' lançamentos';
+
+  // donut rastreado vs não rastreado
+  if(charts['cFaturaDonut'])charts['cFaturaDonut'].destroy();
+  charts['cFaturaDonut']=new Chart(document.getElementById('cFaturaDonut'),{type:'doughnut',
+    data:{labels:['✅ Rastreado NFG','❌ Não rastreado'],datasets:[{data:[+rastreado.toFixed(2),+naoRast.toFixed(2)],backgroundColor:['#34d399','#fb923c']}]},
+    options:{plugins:{legend:{position:'right',labels:{color:'#475569',font:{size:10},boxWidth:12}},
+      tooltip:{callbacks:{label:function(c){return c.label+': R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})+' ('+Math.round(c.raw/(rastreado+naoRast)*100)+'%)';}}}}}});
+
+  // gráfico por mês
+  var byMes={};
+  ALL_CARTAO.forEach(function(r){
+    if(!byMes[r.mes])byMes[r.mes]={total:0,rast:0};
+    byMes[r.mes].total+=r.val;
+    if(r.rastreado)byMes[r.mes].rast+=r.val;
+  });
+  var mesKeys=Object.keys(byMes).sort();
+  mkBar('cFaturaMes',mesKeys,[
+    {label:'Rastreado',data:mesKeys.map(function(m){return +byMes[m].rast.toFixed(2);}),backgroundColor:'#34d399',borderRadius:3,stack:'s'},
+    {label:'Não rastreado',data:mesKeys.map(function(m){return +(byMes[m].total-byMes[m].rast).toFixed(2);}),backgroundColor:'#fb923c',borderRadius:3,stack:'s'}
+  ]);
+
+  // tabela
+  var sorted=f.slice().sort(function(a,b){return b.data.split('/').reverse().join('').localeCompare(a.data.split('/').reverse().join(''));});
+  document.getElementById('tblFatura').innerHTML=sorted.map(function(r){
+    var badge=r.rastreado
+      ? '<span style="color:var(--green);font-size:.8rem">✅</span>'
+      : '<span style="color:var(--orange);font-size:.8rem">❌</span>';
+    var nfeLink=r.nfg?'<a href="https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe='+r.nfg.chave+'" target="_blank" style="font-size:.9rem;margin-left:4px">🔗</a>':'';
+    return '<tr>'+
+      '<td class="date-td">'+r.data+'</td>'+
+      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,45)+'</td>'+
+      '<td style="color:var(--muted);font-size:.7rem">'+r.parcela+'</td>'+
+      '<td class="center">'+badge+nfeLink+'</td>'+
+      '<td class="money">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
+      '</tr>';
+  }).join('');
 }
 
 // ── Abas ──────────────────────────────────────────────────────────
