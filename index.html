@@ -528,22 +528,17 @@ var ALL_PIX=[];
 
 function supaFetch(tabela, select, limit){
   limit = limit || 2000;
-  var url = (typeof SUPA_URL !== 'undefined' ? SUPA_URL : '') +
-            '/rest/v1/' + tabela + '?select=' + (select||'*') + '&limit=' + limit;
-  var headers = {'apikey': typeof SUPA_KEY !== 'undefined' ? SUPA_KEY : '',
-                 'Authorization': 'Bearer ' + (typeof SUPA_KEY !== 'undefined' ? SUPA_KEY : '')};
-  return fetch(url, {headers: headers}).then(function(r){return r.json();});
+  var _url = (window.SUPA_URL||'') + '/rest/v1/' + tabela + '?select=' + (select||'*') + '&limit=' + limit;
+  var _h = {'apikey': window.SUPA_KEY||'', 'Authorization': 'Bearer ' + (window.SUPA_KEY||'')};
+  return fetch(_url, {headers: _h}).then(function(r){return r.json();});
 }
 
 function supaFetchAll(tabela, select){
-  // pagina até buscar tudo
   var all=[], offset=0, limit=1000;
   function page(){
-    var url=(typeof SUPA_URL!=='undefined'?SUPA_URL:'')+'/rest/v1/'+tabela+
-            '?select='+(select||'*')+'&limit='+limit+'&offset='+offset;
-    var headers={'apikey':typeof SUPA_KEY!=='undefined'?SUPA_KEY:'',
-                 'Authorization':'Bearer '+(typeof SUPA_KEY!=='undefined'?SUPA_KEY:'')};
-    return fetch(url,{headers:headers}).then(function(r){return r.json();}).then(function(rows){
+    var _url=(window.SUPA_URL||'')+'/rest/v1/'+tabela+'?select='+(select||'*')+'&limit='+limit+'&offset='+offset;
+    var _h={'apikey':window.SUPA_KEY||'','Authorization':'Bearer '+(window.SUPA_KEY||'')};
+    return fetch(_url,{headers:_h}).then(function(r){return r.json();}).then(function(rows){
       all=all.concat(rows);
       if(rows.length===limit){offset+=limit;return page();}
       return all;
@@ -581,7 +576,7 @@ function loadData(){
 }
 
 function _iniciarDashboard(msg){
-  if(typeof SUPA_URL==='undefined'||!SUPA_URL){
+  if(!window.SUPA_URL){
     msg.innerHTML='🔒 Dashboard privado<br><span style="font-size:.8rem;color:#94a3b8">Acesse localmente com o arquivo config_privado.js</span>';
     msg.style.color='#fb923c';
     document.getElementById('loadBadge').textContent='🔒 privado';
