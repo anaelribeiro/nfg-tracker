@@ -1639,7 +1639,7 @@ function applySaidas(){
   ALL_CARTAO.forEach(function(r){
     if(!r.data||!r.val)return;
     var p=r.data.split('/'); var rMes=p[2]+'-'+p[1];
-    todos.push({data:r.data,mes:rMes,desc:r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',val:r.val});
+    todos.push({data:r.data,mes:rMes,desc:r.desc||r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',val:r.val});
   });
   ALL_PIX.forEach(function(r){
     if(!r.data||!r.valor)return;
