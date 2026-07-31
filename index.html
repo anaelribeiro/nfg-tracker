@@ -549,10 +549,16 @@ function supaFetchAll(tabela, select){
 
 function loadData(){
   var msg=document.createElement('div');msg.id='loadingMsg';
-  msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9999;border:1px solid #1e2d45';
+  msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9999;border:1px solid #1e2d45;text-align:center';
   msg.textContent='Carregando dados...';document.body.appendChild(msg);
 
-  Promise.all([
+  if(typeof SUPA_URL==='undefined'||typeof SUPA_KEY==='undefined'||!SUPA_URL){
+    msg.innerHTML='🔒 Dashboard privado<br><span style="font-size:.8rem;color:#94a3b8">Acesse localmente com o arquivo config_privado.js</span>';
+    msg.style.color='#fb923c';
+    document.getElementById('loadBadge').textContent='🔒 privado';
+    document.getElementById('loadBadge').className='badge warn';
+    return;
+  }
     supaFetchAll('itens'),
     supaFetchAll('filiais'),
     supaFetchAll('cartao'),
