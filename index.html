@@ -1354,20 +1354,20 @@ function enviarChat(){
 // ── Classificação de lançamentos do cartão ───────────────────────
 var CAT_CARTAO={
   '🛒 Supermercado':['macromix','atacadao','super barato','dias e krug','zaffari','stok center','mercado 2000','supermercado','atacarejo','super economix','mercado bosque','aad lopes','rede avila','macamo','atacado nova','irmaos andreazza','frutas catarinense','lt rosa','mercado do b','mercado bosq','pollastro','armazem sant','armazem 88','a j dos sant','121 smart'],
-  '🍽️ Restaurante':['shoarma','restaurante','assados','bourbon sao','mcdonald','mc donalds','arcos dou','burger','pizza','lanche','pastenor','cozinha','ifood','xisesquina','taverna','santoespetinho','mandinho','paixao gastro','chiquinho','mini kalzone','milkmoo','qi sushi','cafe letras','leo - ck','tortas doqui','tortas doquinha','shelbyville','capitaomax','moaciranderson','santoaca','gool de placa','cappelline','cafetiere','lanch santa'],
-  '🏠 Casa/Reforma':['kappesberg','marmorar','construtora','mades','euro tintas','leroy merlin','atacado das tintas','madeireira','tintas','casas bahia','bresolin','ferragem','rb utilidades','agua e sol','beirar','beiramarmater'],
+  '🍔 Delivery/Alimentação':['shoarma','restaurante','assados','bourbon sao','mcdonald','mc donalds','arcos dou','burger','pizza','lanche','pastenor','cozinha','ifood','xisesquina','taverna','santoespetinho','mandinho','paixao gastro','chiquinho','mini kalzone','milkmoo','qi sushi','cafe letras','leo - ck','tortas doqui','tortas doquinha','shelbyville','capitaomax','moaciranderson','santoaca','gool de placa','cappelline','cafetiere','lanch santa'],
+  '🔨 Obras/Reforma':['kappesberg','marmorar','construtora','mades','euro tintas','leroy merlin','atacado das tintas','madeireira','tintas','casas bahia','bresolin','ferragem','rb utilidades','agua e sol','beirar','beiramarmater'],
   '🐾 Pet':['pet e vet','petz','pet love','evo*vet','petlove','veterinari','bicho bom','d pet','cg bravo'],
-  '📦 E-commerce':['shopee','amazon','mercado livre','magalu','americanas','aliexpress','shein','argos comercial'],
-  '💊 Farmácia/Saúde':['farmacia','raia','drogaria','droga','sao joao farm','agafarma','panvel','phillus','weinmann','centromedianeira'],
+  '🛍️ Compras Online':['shopee','amazon','mercado livre','magalu','americanas','aliexpress','shein','argos comercial'],
+  '💊 Saúde':['farmacia','raia','drogaria','droga','sao joao farm','agafarma','panvel','phillus','weinmann','centromedianeira'],
   '👗 Vestuário':['peca rara','grazziotin','donafulana','nicolymello','eskimolojade','00079  sh boub','hna*oboticar','30.858.350','boticario','easilveireal','perolaazul','cleudesmartins','cler cosmet','mariella','vonny cosmet','atacado e varejo ayfa','ayfa'],
   '💅 Beleza':['salao','barbearia','greice','cabeleir','ap cosmetics','beleza na web','pg *beleza','ceopag','variedades bach'],
   '🏋️ Academia':['wellhub','gympass'],
-  '🚗 Transporte':['autopecas','auto peca','posto','combustivel','shell','ipiranga','abastec','pitstop','estacionamen'],
+  '🚗 Veículos/Mecânica':['autopecas','auto peca','posto','combustivel','shell','ipiranga','abastec','pitstop','estacionamen'],
   '🎭 Entretenimento':['rocket club','rocketclub','redecine','alto astral','republicadas'],
   '✈️ Seguro/Viagem':['seguro','itauseguro','azul se'],
-  '📱 Assinaturas':['netflix','spotify','youtube','apple','google','deezer','globoplay','amazon prime'],
+  '💳 Serviços/Assinaturas':['netflix','spotify','youtube','apple','google','deezer','globoplay','amazon prime','cappta','kotas','unlimint','cardpay'],
   '🎁 Presentes/Festas':['kong presente','alecrimpresent','loladoces','jose noli flores','mp *rua','bazar'],
-  '🔧 Serviços':['tagitau','tagme','clenio','roberto dutra','sonia ardenghi','linhas e fitas','ladecasa','vallen','rosaniadasil','maria de l','lenir fortuna','maxwilliammerl','rosanevitorassi','marcelochiaratto','valdecir','cigo bartmann','mauricioaltair','65064765','mafesa','comercial de','mp *terezinha'],
+  '🔧 Serviços Gerais':['tagitau','tagme','clenio','roberto dutra','sonia ardenghi','linhas e fitas','ladecasa','vallen','rosaniadasil','maria de l','lenir fortuna','maxwilliammerl','rosanevitorassi','marcelochiaratto','valdecir','cigo bartmann','mauricioaltair','65064765','mafesa','comercial de','mp *terezinha'],
 };
 function classCartao(desc){
   if(!desc)return'❓ Outros';
