@@ -335,7 +335,7 @@ body.light tr:hover td{background:#f8fafc}
   <div class="box"><h2>Fatura por mês (R$)</h2><canvas id="cFaturaMes"></canvas></div>
 </div>
 <div class="box" style="margin-bottom:14px">
-  <h2>Gastos por categoria (R$)</h2><canvas id="cFaturaCat" style="max-height:300px"></canvas>
+  <h2>Gastos por categoria (R$) <span style="font-size:.65rem;color:var(--muted);font-weight:400">— clique para filtrar</span></h2><canvas id="cFaturaCat" style="max-height:300px;cursor:pointer"></canvas>
 </div>
 
 <div class="box">
@@ -1231,6 +1231,13 @@ function applyFatura(){
   charts['cFaturaCat']=new Chart(document.getElementById('cFaturaCat'),{type:'bar',
     data:{labels:catSorted.map(function(x){return x[0];}),datasets:[{data:catSorted.map(function(x){return +x[1].toFixed(2);}),backgroundColor:COLORS,borderRadius:4}]},
     options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2});}}}},
+      onClick:function(_,els){
+        if(!els.length)return;
+        var cat=catSorted[els[0].index][0];
+        var sel=document.getElementById('ffCat');
+        sel.value=sel.value===cat?'':cat;
+        applyFatura();
+      },
       scales:{x:{ticks:{color:'#94a3b8',callback:function(v){return'R$'+Number(v).toLocaleString('pt-BR');}},grid:{color:'#1e2536'}},
               y:{ticks:{color:'#475569'},grid:{color:'#1e2536'}}}}});
 
