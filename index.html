@@ -558,6 +558,7 @@ function loadData(){
     document.getElementById('loadBadge').className='badge warn';
     return;
   }
+  Promise.all([
     supaFetchAll('itens'),
     supaFetchAll('filiais'),
     supaFetchAll('cartao'),
@@ -593,7 +594,7 @@ function buildPixFromDB(rows){
   var sel=document.getElementById('fpMes');
   if(!sel)return;
   var meses=new Set(rows.map(function(r){var p=(r.data||'').split('/');return p[2]+'-'+p[1];}));
-  [...meses].sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
+  Array.from(meses).sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
   if(sel.options.length>1)sel.value=sel.options[1].value;
   applyPix();
 }
@@ -800,8 +801,8 @@ function applyFilters(){
   document.getElementById('lblDias').textContent=diasDesc.length+' dias';
   document.getElementById('tblDias').innerHTML=diasDesc.map(function(d){
     var info=DIAS_NOTAS[d];
-    var lojas=[...info.lojas].join(', ');
-    var pgtos=[...info.pgtos].join(', ');
+    var lojas=Array.from(info.lojas).join(', ');
+    var pgtos=Array.from(info.pgtos).join(', ');
     return '<tr><td>'+info.emissao+'</td><td class="loja-mini" title="'+lojas+'">'+lojas.substring(0,30)+'</td>'+
       '<td class="center">'+info.chaves.size+'</td>'+
       '<td class="loja-mini">'+pgtos+'</td>'+
@@ -822,13 +823,13 @@ function applyFilters(){
   document.getElementById('lblProd').textContent=ps.length+' produtos';
   document.getElementById('tblBody').innerHTML=ps.map(function(e,i){
     var v=e[1];var datas=v.datas.slice().sort().reverse();
-    var chaveRecente=v.chaves.size>0?[...v.chaves][0]:'';
+    var chaveRecente=v.chaves.size>0?Array.from(v.chaves)[0]:'';
     var url='https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe='+chaveRecente;
     return '<tr data-desc="'+e[0].toLowerCase()+'" data-cat="'+v.cat+'" data-total="'+v.total.toFixed(2)+'" data-compras="'+v.compras+'">'+
       '<td class="rank">'+(i+1)+'</td>'+
       '<td class="desc-td" title="'+e[0]+'">'+e[0].substring(0,40)+'</td>'+
       '<td><span class="cat-badge" title="'+v.cat+'">'+v.cat.split(' ')[0]+'</span></td>'+
-      '<td class="loja-mini" title="'+[...v.lojas].join(', ')+'">'+[...v.lojas].join(', ').substring(0,28)+'</td>'+
+      '<td class="loja-mini" title="'+Array.from(v.lojas).join(', ')+'">'+Array.from(v.lojas).join(', ').substring(0,28)+'</td>'+
       '<td class="date-td" title="'+datas.slice(0,5).join(', ')+'">'+datas[0]+'</td>'+
       '<td class="center">'+v.compras+'</td>'+
       '<td class="right">'+v.qtd.toFixed(2)+' '+v.un+'</td>'+
@@ -1263,7 +1264,7 @@ function buildCartao(rows){
   // popula select de meses
   var meses=new Set(ALL_CARTAO.map(function(r){return r.mes;}));
   var sel=document.getElementById('ffMes');
-  [...meses].sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
+  Array.from(meses).sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
   if(sel.options.length>1)sel.value=sel.options[1].value;
   // popula select de categorias
   var cats=Object.keys(CAT_CARTAO).concat(['❓ Outros']);
@@ -1455,22 +1456,22 @@ function initDashboard(){
     if(r.pagamento)pgtos.add(r.pagamento);
   });
   ['asc'].forEach(function(_){
-    [...lojas].sort().forEach(function(l){document.getElementById('fLoja').add(new Option(l,l));});
-    var mesArr=[...meses].sort();
+    Array.from(lojas).sort().forEach(function(l){document.getElementById('fLoja').add(new Option(l,l));});
+    var mesArr=Array.from(meses).sort();
     mesArr.forEach(function(m){document.getElementById('fMes').add(new Option(m,m));});
     if(mesArr.length)document.getElementById('fMes').value=mesArr[mesArr.length-1];
-    var diasSorted=[...dias].sort().reverse();
+    var diasSorted=Array.from(dias).sort().reverse();
     diasSorted.forEach(function(d){var p=d.split('-');document.getElementById('fDia').add(new Option(p[2]+'/'+p[1]+'/'+p[0],d));});
-    [...munis].sort().forEach(function(m){document.getElementById('fMuni').add(new Option(m,m));});
-    [...pgtos].sort().forEach(function(p){document.getElementById('fPgto').add(new Option(p,p));});
+    Array.from(munis).sort().forEach(function(m){document.getElementById('fMuni').add(new Option(m,m));});
+    Array.from(pgtos).sort().forEach(function(p){document.getElementById('fPgto').add(new Option(p,p));});
   });
   aplicarDefaultFiliais();
   buildFilialList();updateFilialUI();
   // popula selects PIX
   var bancos=new Set(ALL_PIX.map(function(r){return r.banco;}));
   var selB=document.getElementById('fpBanco');
-  if(selB)[...bancos].sort().forEach(function(b){selB.add(new Option(b,b));});
-  var mesesPix=[...new Set(ALL_PIX.map(function(r){var p=(r.data||'').split('/');return p[2]+'-'+p[1];}))].sort();
+  if(selB)Array.from(bancos).sort().forEach(function(b){selB.add(new Option(b,b));});
+  var mesesPix=Array.from(new Set(ALL_PIX.map(function(r){var p=(r.data||'').split('/');return p[2]+'-'+p[1];}))).sort();
   var selMP=document.getElementById('fpMes');
   if(selMP){
     mesesPix.reverse().forEach(function(m){selMP.add(new Option(m,m));});
@@ -1485,7 +1486,7 @@ function initDashboard(){
 fetch('config_privado.js')
   .then(function(r){return r.ok?r.text():Promise.reject();})
   .then(function(code){
-    try{eval(code);}catch(e){}
+    try{new Function(code)();}catch(e){}
     loadData();
   })
   .catch(function(){loadData();});
