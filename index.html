@@ -115,6 +115,16 @@ body.light tr:hover td{background:#f8fafc}
 #chatSend{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:.8rem;cursor:pointer}
 @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.main{padding:12px 14px}.topbar{padding:10px 14px}.topbar h1{font-size:.95rem}.cards{gap:8px}.card{min-width:calc(50% - 4px);padding:12px 14px}.card .val{font-size:1.35rem}.grid4{grid-template-columns:1fr 1fr}.fgrp select,.fgrp input[type=text]{min-width:0;width:100%}canvas{max-height:180px}table{font-size:.68rem}th,td{padding:5px 6px}.desc-td{max-width:120px}.loja-mini,.date-td{display:none}}
+/* login */
+#loginScreen{display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center}
+#loginScreen.show{display:flex}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:36px 40px;width:320px;max-width:90vw;text-align:center}
+.login-box h2{font-size:1.1rem;font-weight:700;margin-bottom:6px;color:var(--text)}
+.login-box p{font-size:.75rem;color:var(--muted);margin-bottom:24px}
+.login-box input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:10px}
+.login-box input:focus{outline:1px solid var(--blue)}
+.login-box button{width:100%;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:11px;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:4px}
+.login-box .err{font-size:.75rem;color:var(--pink);margin-top:8px;min-height:18px}
 </style>
 </head>
 <body class="light">
@@ -424,6 +434,18 @@ body.light tr:hover td{background:#f8fafc}
   </div>
 </div>
 
+<!-- login -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h2>🔒 NFG Tracker</h2>
+    <p>Acesso restrito</p>
+    <input type="text" id="loginUser" placeholder="Usuário" autocomplete="username">
+    <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
+    <button onclick="fazerLogin()">Entrar</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
 <!-- modal NF-e -->
 <div id="nfeModal" onclick="if(event.target===this)this.style.display='none'">
   <div class="modal-box">
@@ -549,30 +571,58 @@ function supaFetchAll(tabela, select){
 
 var VERCEL_CONFIG_URL='https://portfolio-api-ten-ecru.vercel.app/api/config';
 
-function loadData(){
-  var msg=document.createElement('div');msg.id='loadingMsg';
-  msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9999;border:1px solid #1e2d45;text-align:center';
-  msg.textContent='Carregando dados...';document.body.appendChild(msg);
+function fazerLogin(){
+  var user=document.getElementById('loginUser').value.trim();
+  var pass=document.getElementById('loginPass').value;
+  var err=document.getElementById('loginErr');
+  if(!user||!pass){err.textContent='Preencha usuário e senha.';return;}
+  err.textContent='Verificando...';
+  fetch(VERCEL_CONFIG_URL+'?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+    .then(function(res){
+      if(!res.ok){err.textContent='Usuário ou senha incorretos.';return;}
+      window.SUPA_URL=res.d.url;
+      window.SUPA_KEY=res.d.key;
+      localStorage.setItem('nfg_auth',JSON.stringify({user:user,pass:pass}));
+      document.getElementById('loginScreen').classList.remove('show');
+      _iniciarDashboard(document.getElementById('loadingMsg')||criarLoadingMsg());
+    })
+    .catch(function(){err.textContent='Erro de conexão. Tente novamente.';});
+}
 
-  // se já tem config local (localhost), usa direto
-  if(typeof SUPA_URL!=='undefined'&&SUPA_URL){
-    _iniciarDashboard(msg);
+function criarLoadingMsg(){
+  var msg=document.createElement('div');msg.id='loadingMsg';
+  msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9998;border:1px solid #1e2d45;text-align:center';
+  msg.textContent='Carregando dados...';document.body.appendChild(msg);
+  return msg;
+}
+
+function loadData(){
+  // se já tem config local (localhost com config_privado.js), usa direto
+  if(window.SUPA_URL){
+    _iniciarDashboard(criarLoadingMsg());
     return;
   }
-  // tenta buscar config da Vercel
-  fetch(VERCEL_CONFIG_URL)
-    .then(function(r){return r.ok?r.json():Promise.reject('config error');})
-    .then(function(cfg){
-      window.SUPA_URL=cfg.url;
-      window.SUPA_KEY=cfg.key;
-      _iniciarDashboard(msg);
-    })
-    .catch(function(){
-      msg.innerHTML='🔒 Dashboard privado<br><span style="font-size:.8rem;color:#94a3b8">Credenciais não configuradas</span>';
-      msg.style.color='#fb923c';
-      document.getElementById('loadBadge').textContent='🔒 privado';
-      document.getElementById('loadBadge').className='badge warn';
-    });
+  // tenta login salvo no localStorage
+  var saved=null;
+  try{saved=JSON.parse(localStorage.getItem('nfg_auth')||'null');}catch(e){}
+  if(saved&&saved.user&&saved.pass){
+    fetch(VERCEL_CONFIG_URL+'?user='+encodeURIComponent(saved.user)+'&pass='+encodeURIComponent(saved.pass))
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+      .then(function(res){
+        if(res.ok){
+          window.SUPA_URL=res.d.url;
+          window.SUPA_KEY=res.d.key;
+          _iniciarDashboard(criarLoadingMsg());
+        } else {
+          localStorage.removeItem('nfg_auth');
+          document.getElementById('loginScreen').classList.add('show');
+        }
+      })
+      .catch(function(){document.getElementById('loginScreen').classList.add('show');});
+  } else {
+    document.getElementById('loginScreen').classList.add('show');
+  }
 }
 
 function _iniciarDashboard(msg){
