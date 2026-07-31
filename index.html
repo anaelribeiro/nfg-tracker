@@ -6,17 +6,6 @@
 <title>NFG Tracker v2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script>
-var _configLoaded=false;
-var _domReady=false;
-function _tryStart(){if(_configLoaded&&_domReady)loadData();}
-var _s=document.createElement('script');
-_s.src='config_privado.js';
-_s.onload=function(){_configLoaded=true;_tryStart();};
-_s.onerror=function(){_configLoaded=true;_tryStart();};
-document.head.appendChild(_s);
-document.addEventListener('DOMContentLoaded',function(){_domReady=true;_tryStart();});
-</script>
 <style>
 :root{--bg:#090d1a;--card:#111827;--border:#1e2d45;--text:#e2e8f0;--muted:#64748b;
   --blue:#38bdf8;--green:#34d399;--purple:#a78bfa;--pink:#f472b6;--orange:#fb923c;--yellow:#facc15}
@@ -1492,7 +1481,9 @@ function initDashboard(){
   applyFilters();
 }
 
-// inicialização controlada pelo script de config acima
+// inicialização após todos os scripts carregarem
+window.addEventListener('load', loadData);
 </script>
+<script src="config_privado.js" onerror="void(0)"></script>
 </body>
 </html>
