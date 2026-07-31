@@ -6,7 +6,13 @@
 <title>NFG Tracker v2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="config_privado.js"></script>
+<script>
+var _s=document.createElement('script');
+_s.src='config_privado.js';
+_s.onload=function(){document.addEventListener('DOMContentLoaded',loadData);};
+_s.onerror=function(){document.addEventListener('DOMContentLoaded',loadData);};
+document.head.appendChild(_s);
+</script>
 <style>
 :root{--bg:#090d1a;--card:#111827;--border:#1e2d45;--text:#e2e8f0;--muted:#64748b;
   --blue:#38bdf8;--green:#34d399;--purple:#a78bfa;--pink:#f472b6;--orange:#fb923c;--yellow:#facc15}
@@ -1482,7 +1488,7 @@ function initDashboard(){
   applyFilters();
 }
 
-document.addEventListener('DOMContentLoaded',loadData);
+// DOMContentLoaded é disparado pelo script de config_privado.js acima
 </script>
 </body>
 </html>
