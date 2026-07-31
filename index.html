@@ -323,8 +323,9 @@ body.light tr:hover td{background:#f8fafc}
         <option value="nao_rastreado">❌ Não rastreado</option>
       </select>
     </div>
+    <div class="fgrp"><label>Categoria</label><select id="ffCat" onchange="applyFatura()"><option value="">Todas</option></select></div>
     <div class="fgrp"><label>Buscar</label><input type="text" id="ffBusca" placeholder="estabelecimento..." oninput="applyFatura()" style="min-width:160px"></div>
-    <button class="btn" onclick="document.getElementById('ffMes').value='';document.getElementById('ffTipo').value='';document.getElementById('ffBusca').value='';applyFatura()">✕ Limpar</button>
+    <button class="btn" onclick="document.getElementById('ffMes').value='';document.getElementById('ffTipo').value='';document.getElementById('ffCat').value='';document.getElementById('ffBusca').value='';applyFatura()">✕ Limpar</button>
     <div class="fstat"><span id="ffCount">—</span> lançamentos · R$ <span id="ffTotal" style="color:var(--blue);font-weight:600">—</span></div>
   </div>
 </div>
@@ -332,6 +333,9 @@ body.light tr:hover td{background:#f8fafc}
 <div class="grid2" style="margin-bottom:14px">
   <div class="box"><h2>Rastreado vs Não rastreado (R$)</h2><canvas id="cFaturaDonut"></canvas></div>
   <div class="box"><h2>Fatura por mês (R$)</h2><canvas id="cFaturaMes"></canvas></div>
+</div>
+<div class="box" style="margin-bottom:14px">
+  <h2>Gastos por categoria (R$)</h2><canvas id="cFaturaCat" style="max-height:300px"></canvas>
 </div>
 
 <div class="box">
@@ -341,6 +345,7 @@ body.light tr:hover td{background:#f8fafc}
       <thead><tr>
         <th>Data</th>
         <th>Descrição</th>
+        <th>Categoria</th>
         <th>Parcelamento</th>
         <th class="center">Status</th>
         <th class="money">Valor R$</th>
@@ -1087,6 +1092,35 @@ function enviarChat(){
   });
 }
 
+// ── Classificação de lançamentos do cartão ───────────────────────
+var CAT_CARTAO={
+  '🛒 Supermercado':['macromix','atacadao','super barato','dias e krug','zaffari','stok center','mercado 2000','supermercado','atacarejo','super economix','mercado bosque','aad lopes','rede avila','macamo','atacado nova','irmaos andreazza','frutas catarinense','lt rosa','mercado do b','mercado bosq','pollastro','armazem sant','armazem 88','a j dos sant','121 smart'],
+  '🍽️ Restaurante':['shoarma','restaurante','assados','bourbon sao','mcdonald','mc donalds','arcos dou','burger','pizza','lanche','pastenor','cozinha','ifood','xisesquina','taverna','santoespetinho','mandinho','paixao gastro','chiquinho','mini kalzone','milkmoo','qi sushi','cafe letras','leo - ck','tortas doqui','tortas doquinha','shelbyville','capitaomax','moaciranderson','santoaca','gool de placa','cappelline','cafetiere','lanch santa'],
+  '🏠 Casa/Reforma':['kappesberg','marmorar','construtora','mades','euro tintas','leroy merlin','atacado das tintas','madeireira','tintas','casas bahia','bresolin','ferragem','rb utilidades','agua e sol','beirar','beiramarmater'],
+  '🐾 Pet':['pet e vet','petz','pet love','evo*vet','petlove','veterinari','bicho bom','d pet','cg bravo'],
+  '📦 E-commerce':['shopee','amazon','mercado livre','magalu','americanas','aliexpress','shein','argos comercial'],
+  '💊 Farmácia/Saúde':['farmacia','raia','drogaria','droga','sao joao farm','agafarma','panvel','phillus','weinmann','centromedianeira'],
+  '👗 Vestuário':['peca rara','grazziotin','donafulana','nicolymello','eskimolojade','00079  sh boub','hna*oboticar','30.858.350','boticario','easilveireal','perolaazul','cleudesmartins','cler cosmet','mariella','vonny cosmet','atacado e varejo ayfa','ayfa'],
+  '💅 Beleza':['salao','barbearia','greice','cabeleir','ap cosmetics','beleza na web','pg *beleza','ceopag','variedades bach'],
+  '🏋️ Academia':['wellhub','gympass'],
+  '🚗 Transporte':['autopecas','auto peca','posto','combustivel','shell','ipiranga','abastec','pitstop','estacionamen'],
+  '🎭 Entretenimento':['rocket club','rocketclub','redecine','alto astral','republicadas'],
+  '✈️ Seguro/Viagem':['seguro','itauseguro','azul se'],
+  '📱 Assinaturas':['netflix','spotify','youtube','apple','google','deezer','globoplay','amazon prime'],
+  '🎁 Presentes/Festas':['kong presente','alecrimpresent','loladoces','jose noli flores','mp *rua','bazar'],
+  '🔧 Serviços':['tagitau','tagme','clenio','roberto dutra','sonia ardenghi','linhas e fitas','ladecasa','vallen','rosaniadasil','maria de l','lenir fortuna','maxwilliammerl','rosanevitorassi','marcelochiaratto','valdecir','cigo bartmann','mauricioaltair','65064765','mafesa','comercial de','mp *terezinha'],
+};
+function classCartao(desc){
+  if(!desc)return'❓ Outros';
+  var d=desc.toLowerCase();
+  var cats=Object.keys(CAT_CARTAO);
+  for(var i=0;i<cats.length;i++){
+    var kws=CAT_CARTAO[cats[i]];
+    for(var j=0;j<kws.length;j++)if(d.indexOf(kws[j])>=0)return cats[i];
+  }
+  return'❓ Outros';
+}
+
 // ── Fatura Itaú ───────────────────────────────────────────────────
 function buildCartao(rows){
   // monta index de notas NFG por data+valor para cruzamento
@@ -1115,12 +1149,14 @@ function buildCartao(rows){
     var partes=r['Data'].split('/');
     var key=partes[2]+'-'+partes[1]+'-'+partes[0]+'|'+val.toFixed(2);
     var nfg=nfgIdx[key]||null;
+    var catCartao=classCartao(r['Lançamento']||'');
     var mes=partes[2]+'-'+partes[1];
     return {
       data:r['Data'], mes:mes,
       desc:r['Lançamento']||'',
       parcela:r['Parcelamento']||'',
       val:val,
+      cat:catCartao,
       rastreado:!!nfg,
       nfg:nfg
     };
@@ -1130,8 +1166,11 @@ function buildCartao(rows){
   var meses=new Set(ALL_CARTAO.map(function(r){return r.mes;}));
   var sel=document.getElementById('ffMes');
   [...meses].sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
-  // seleciona mês mais recente por padrão
   if(sel.options.length>1)sel.value=sel.options[1].value;
+  // popula select de categorias
+  var cats=Object.keys(CAT_CARTAO).concat(['❓ Outros']);
+  var selCat=document.getElementById('ffCat');
+  cats.forEach(function(c){selCat.add(new Option(c,c));});
 
   applyFatura();
 }
@@ -1139,11 +1178,13 @@ function buildCartao(rows){
 function applyFatura(){
   var mes=document.getElementById('ffMes').value;
   var tipo=document.getElementById('ffTipo').value;
+  var cat=document.getElementById('ffCat').value;
   var busca=(document.getElementById('ffBusca').value||'').toLowerCase();
 
   var f=ALL_CARTAO.filter(function(r){
     return (!mes||r.mes===mes)&&
            (!tipo||(tipo==='rastreado'?r.rastreado:!r.rastreado))&&
+           (!cat||r.cat===cat)&&
            (!busca||r.desc.toLowerCase().includes(busca));
   });
 
@@ -1182,16 +1223,28 @@ function applyFatura(){
     {label:'Não rastreado',data:mesKeys.map(function(m){return +(byMes[m].total-byMes[m].rast).toFixed(2);}),backgroundColor:'#fb923c',borderRadius:3,stack:'s'}
   ]);
 
-  // tabela
-  var sorted=f.slice().sort(function(a,b){return b.data.split('/').reverse().join('').localeCompare(a.data.split('/').reverse().join(''));});
-  document.getElementById('tblFatura').innerHTML=sorted.map(function(r){
+  // gráfico por categoria
+  var byCat={};
+  f.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
+  var catSorted=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
+  if(charts['cFaturaCat'])charts['cFaturaCat'].destroy();
+  charts['cFaturaCat']=new Chart(document.getElementById('cFaturaCat'),{type:'bar',
+    data:{labels:catSorted.map(function(x){return x[0];}),datasets:[{data:catSorted.map(function(x){return +x[1].toFixed(2);}),backgroundColor:COLORS,borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2});}}}},
+      scales:{x:{ticks:{color:'#94a3b8',callback:function(v){return'R$'+Number(v).toLocaleString('pt-BR');}},grid:{color:'#1e2536'}},
+              y:{ticks:{color:'#475569'},grid:{color:'#1e2536'}}}}});
+
+  // tabela lançamentos
+  var fSorted=f.slice().sort(function(a,b){return b.data.split('/').reverse().join('').localeCompare(a.data.split('/').reverse().join(''));});
+  document.getElementById('tblFatura').innerHTML=fSorted.map(function(r){
     var badge=r.rastreado
       ? '<span style="color:var(--green);font-size:.8rem">✅</span>'
       : '<span style="color:var(--orange);font-size:.8rem">❌</span>';
     var nfeLink=r.nfg?'<a href="https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe='+r.nfg.chave+'" target="_blank" style="font-size:.9rem;margin-left:4px">🔗</a>':'';
     return '<tr>'+
       '<td class="date-td">'+r.data+'</td>'+
-      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,45)+'</td>'+
+      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,40)+'</td>'+
+      '<td style="font-size:.72rem;white-space:nowrap">'+r.cat+'</td>'+
       '<td style="color:var(--muted);font-size:.7rem">'+r.parcela+'</td>'+
       '<td class="center">'+badge+nfeLink+'</td>'+
       '<td class="money">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
