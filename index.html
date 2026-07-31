@@ -38,6 +38,8 @@ body.light .fgrp select,body.light .fgrp input{background:#f8fafc;border-color:#
 .fgrp select:focus,.fgrp input:focus{outline:1px solid var(--blue)}
 .btn{background:#1e2d45;color:var(--text);border:none;border-radius:7px;padding:5px 12px;font-size:.72rem;cursor:pointer}
 .btn:hover{background:#243549}
+body.light .btn{background:#cbd5e1;color:#0f172a}
+body.light .btn:hover{background:#b0bec5}
 .fstat{font-size:.7rem;color:var(--muted);margin-left:auto}
 /* grids */
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
@@ -115,12 +117,12 @@ body.light tr:hover td{background:#f8fafc}
 @media(max-width:600px){.main{padding:12px 14px}.topbar{padding:10px 14px}.topbar h1{font-size:.95rem}.cards{gap:8px}.card{min-width:calc(50% - 4px);padding:12px 14px}.card .val{font-size:1.35rem}.grid4{grid-template-columns:1fr 1fr}.fgrp select,.fgrp input[type=text]{min-width:0;width:100%}canvas{max-height:180px}table{font-size:.68rem}th,td{padding:5px 6px}.desc-td{max-width:120px}.loja-mini,.date-td{display:none}}
 </style>
 </head>
-<body>
+<body class="light">
 <div class="topbar">
   <h1>NFG Tracker <span style="font-size:.75rem;color:var(--muted);font-weight:400">v2</span></h1>
   <span class="badge warn" id="loadBadge">⟳ carregando...</span>
   <span style="font-size:.68rem;color:var(--muted)" id="topbarInfo"></span>
-  <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀ Claro</button>
+  <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙 Escuro</button>
 </div>
 
 <div class="main">
@@ -137,6 +139,18 @@ body.light tr:hover td{background:#f8fafc}
 <!-- filtros -->
 <div class="filters">
   <div class="filters-row">
+    <div class="fgrp"><label>Tipo de loja</label>
+      <select id="fTipoLoja" onchange="applyFilters()">
+        <option value="">Todos</option>
+        <option value="supermercado">🛒 Supermercado</option>
+        <option value="restaurante">🍽️ Restaurante</option>
+        <option value="construcao">🪵 Construção</option>
+        <option value="farmacia">💊 Farmácia</option>
+        <option value="varejo">👗 Varejo</option>
+        <option value="ecommerce">📦 E-commerce</option>
+        <option value="outros">⛽ Outros</option>
+      </select>
+    </div>
     <div class="fgrp"><label>Rede / Loja</label><select id="fLoja" onchange="applyFilters()"><option value="">Todas</option></select></div>
     <div class="fgrp"><label>Mês</label><select id="fMes" onchange="applyFilters()"><option value="">Todos</option></select></div>
     <div class="fgrp"><label>Dia</label><select id="fDia" onchange="applyFilters()"><option value="">Todos</option></select></div>
@@ -158,13 +172,17 @@ body.light tr:hover td{background:#f8fafc}
   </div>
   <div class="filters-row">
     <div class="fgrp" style="flex:1">
-      <label>Filial (excluir)</label>
+      <label>Estabelecimento (excluir)</label>
       <div id="filialDropdown" style="position:relative;display:inline-block">
-        <button id="filialBtn" onclick="toggleFilialPanel(event)" style="background:#0f1623;border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 9px;font-size:.75rem;cursor:pointer;min-width:180px;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <button id="filialBtn" onclick="toggleFilialPanel(event)" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 9px;font-size:.75rem;cursor:pointer;min-width:180px;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:6px">
           <span id="filialBtnText">Todas as filiais ✓</span><span>▾</span>
         </button>
-        <div id="filialPanel" style="display:none;position:absolute;top:100%;left:0;z-index:100;background:#111827;border:1px solid var(--border);border-radius:9px;width:360px;max-height:260px;overflow-y:auto;padding:8px;margin-top:4px;box-shadow:0 8px 24px #000a">
-          <input type="text" placeholder="buscar filial..." oninput="filterFilialList(this.value)" style="width:100%;background:#0f1623;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 9px;font-size:.73rem;margin-bottom:6px">
+        <div id="filialPanel" style="display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--card);border:1px solid var(--border);border-radius:9px;width:360px;max-height:260px;overflow-y:auto;padding:8px;margin-top:4px;box-shadow:0 8px 24px #000a">
+          <input type="text" placeholder="buscar estabelecimento..." oninput="filterFilialList(this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 9px;font-size:.73rem;margin-bottom:4px">
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <button onclick="selecionarTodosFiliais()" style="flex:1;background:#1e3a2f;color:#34d399;border:1px solid #34d399;border-radius:5px;padding:3px 8px;font-size:.68rem;cursor:pointer">✓ Selecionar todos</button>
+            <button onclick="resetFiliais()" style="flex:1;background:#2d1e10;color:#fb923c;border:1px solid #fb923c;border-radius:5px;padding:3px 8px;font-size:.68rem;cursor:pointer">↺ Padrão</button>
+          </div>
           <div id="filialList"></div>
         </div>
       </div>
@@ -201,9 +219,9 @@ body.light tr:hover td{background:#f8fafc}
 <div class="grid2">
   <div class="box"><h2>Top redes</h2><canvas id="cLojas"></canvas></div>
 </div>
-<div class="section-title">Filiais & Municípios</div>
+<div class="section-title">Estabelecimentos & Municípios</div>
 <div class="grid2">
-  <div class="box"><h2>Por filial</h2><canvas id="cFiliais"></canvas></div>
+  <div class="box"><h2>Por estabelecimento</h2><canvas id="cFiliais"></canvas></div>
   <div class="box"><h2>Por município</h2><canvas id="cMuni"></canvas></div>
 </div>
 <div class="section-title">Consolidado por dia</div>
@@ -337,6 +355,25 @@ var CATEGORIAS=[
   ['🏗️ Outros',[]]
 ];
 
+var TIPO_LOJA={
+  construcao:['MADEIREIRA','LEROY MERLIN','ATACADO DAS TINTAS'],
+  farmacia:['SAO JOAO FARMACIA','SÃO JOÃO FARMÁCIA','FARMACIA','DROGARIA'],
+  restaurante:['BK ','MCDONALD','SHOARMA','HORIZONTE RESTAURANTE','CASA DO CHURRASCO','SUPER COZINHA','PIZZARIA','TORTAS DOQUINHA','ODETE FERREIRA'],
+  ecommerce:['AMAZON','LG BOX','GLOBAL DISTRIBUICAO','GRUPO K1'],
+  varejo:['RENNER','BOTICARIO','BOTICÁRIO','121 SMART','VARIEDADES BACH','GZT'],
+  supermercado:['MACROMIX','UNIDASUL','ZAFFARI','ATACADAO','SUPER BARATO','SUPERMERCADO 2000','STOK CENTER','DIAS E KRUGER','DIAS & KRUGER','A.A.D. LOPES','COMERCIAL ZAFFARI','ATACAD'],
+  outros:['POSTO ZOOLOGICO','VIANA AUTOPECAS']
+};
+function classLoja(loja){
+  if(!loja)return'outros';
+  var u=loja.toUpperCase();
+  var tipos=Object.keys(TIPO_LOJA);
+  for(var i=0;i<tipos.length;i++){
+    var kws=TIPO_LOJA[tipos[i]];
+    for(var j=0;j<kws.length;j++)if(u.indexOf(kws[j].toUpperCase())>=0)return tipos[i];
+  }
+  return'outros';
+}
 function classNutri(desc){
   if(!desc)return'neutro';
   var d=desc.toUpperCase();
@@ -356,7 +393,8 @@ function classifica(desc){
 // ── Constantes globais ────────────────────────────────────────────
 var SHEET_ID='1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c';
 var JOAO_CORREIA='UNIDASUL DISTRIBUIDORA ALIMENTICIA S/A — JOAO CORREA, 1827, CENTRO';
-var excludedFiliais=new Set([JOAO_CORREIA]);
+var CNPJ_THEODOMIRO='07718633007515';
+var excludedFiliais=new Set();
 var ALL_ITENS=[], FILIAIS_MAP={}, PROD_NOTAS={};
 var activeCat='';
 
@@ -444,6 +482,7 @@ function buildItens(rows){
       qtd:qtd,un:r.unidade||'',
       val_unit:parseFloat((r.valor_unit||'').replace(',','.'))||0,
       val:val,cat:cat,nutri:nutri,
+      tipoLoja:classLoja(r.loja||''),
       loja_c:(FILIAIS_MAP[cnpj]&&FILIAIS_MAP[cnpj].nome)||r.loja||''
     };
   });
@@ -460,7 +499,7 @@ function buildItens(rows){
 }
 
 // ── Charts ────────────────────────────────────────────────────────
-Chart.defaults.color='#64748b'; Chart.defaults.borderColor='#1e2d45';
+Chart.defaults.color='#475569'; Chart.defaults.borderColor='#e2e8f0';
 var COLORS=['#38bdf8','#34d399','#a78bfa','#f472b6','#fb923c','#facc15','#4ade80','#60a5fa','#e879f9','#94a3b8','#f87171','#818cf8'];
 var charts={};
 function mkBar(id,labels,data,color,horiz){
@@ -485,6 +524,7 @@ function mkDonut(id,labels,data){
 
 // ── Filtros ───────────────────────────────────────────────────────
 function getFiltered(){
+  var tipoLoja=document.getElementById('fTipoLoja').value;
   var loja=document.getElementById('fLoja').value;
   var mes=document.getElementById('fMes').value;
   var dia=document.getElementById('fDia').value;
@@ -494,7 +534,8 @@ function getFiltered(){
   var pgto=document.getElementById('fPgto').value;
   var prod=document.getElementById('fProd').value.toLowerCase().trim();
   return ALL_ITENS.filter(function(r){
-    return (!loja||r.loja===loja)&&
+    return (!tipoLoja||r.tipoLoja===tipoLoja)&&
+           (!loja||r.loja===loja)&&
            (excludedFiliais.size===0||!excludedFiliais.has(r.filial))&&
            (!mes||r.mes===mes)&&(!dia||r.dia===dia)&&(!muni||r.muni===muni)&&
            (!cat||r.cat===cat)&&(!nutri||r.nutri===nutri)&&
@@ -712,6 +753,37 @@ function buildFilialList(filter){
   }).join('');
 }
 function filterFilialList(q){buildFilialList(q);}
+function selecionarTodosFiliais(){
+  excludedFiliais.clear();
+  buildFilialList();updateFilialUI();applyFilters();
+}
+function resetFiliais(){
+  // exclui tudo menos Theodomiro
+  var todos=getTodosFiliais();
+  excludedFiliais.clear();
+  todos.forEach(function(f){
+    var cnpj=Object.keys(FILIAIS_MAP).find(function(k){return filialLabel(k,'')+' — '===f||filialLabel(k,'')===f;});
+    if(cnpj!==CNPJ_THEODOMIRO)excludedFiliais.add(f);
+  });
+  buildFilialList();updateFilialUI();applyFilters();
+}
+function getTodosFiliais(){
+  var lista=Object.keys(FILIAIS_MAP).map(function(cnpj){
+    var info=FILIAIS_MAP[cnpj];
+    return info.nome+(info.endereco?' — '+info.endereco:'');
+  });
+  var extra=new Set(ALL_ITENS.map(function(r){return r.filial;}));
+  extra.forEach(function(f){if(!lista.includes(f))lista.push(f);});
+  return lista.filter(function(f){return f.trim();});
+}
+var LABEL_THEODOMIRO='MACROMIX — THEODOMIRO PORTO DA FONSECA, 2120, PADRE REUS, SAO LEOPOLDO/RS';
+function aplicarDefaultFiliais(){
+  var todos=getTodosFiliais();
+  excludedFiliais.clear();
+  todos.forEach(function(f){
+    if(f!==LABEL_THEODOMIRO) excludedFiliais.add(f);
+  });
+}
 function toggleFilialPanel(e){
   e.stopPropagation();
   var p=document.getElementById('filialPanel');
@@ -725,24 +797,26 @@ function toggleFilial(cb){
 function updateFilialUI(){
   var tags=document.getElementById('filialTags');
   if(excludedFiliais.size===0){
-    document.getElementById('filialBtnText').textContent='Todas as filiais ✓';
+    document.getElementById('filialBtnText').textContent='Todos os estabelecimentos ✓';
     tags.innerHTML='';return;
   }
-  document.getElementById('filialBtnText').textContent='Excluindo '+excludedFiliais.size+' filial(is)';
+  document.getElementById('filialBtnText').textContent='Excluindo '+excludedFiliais.size+' estabelecimento(s)';
   tags.innerHTML=Array.from(excludedFiliais).map(function(f){
     var nome=f.split(' — ')[0];
-    return '<span style="background:#3b1e1e;color:#f87171;font-size:.65rem;padding:2px 8px;border-radius:12px;display:flex;align-items:center;gap:4px">'+nome+
-      '<span class="rm" data-filial="'+f.replace(/"/g,'&quot;')+'" style="cursor:pointer;color:#f87171">×</span></span>';
+    return '<span style="background:#3b1e1e;color:#f87171;font-size:.65rem;padding:2px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:4px">'+nome+
+      '<span class="rm" data-filial="'+f.replace(/"/g,'&quot;')+'" style="cursor:pointer">×</span></span>';
   }).join('');
 }
 function removeFilial(f){excludedFiliais.delete(f);buildFilialList();updateFilialUI();applyFilters();}
 
 // ── Reset ─────────────────────────────────────────────────────────
 function resetFilters(){
-  ['fLoja','fMes','fDia','fMuni','fCat','fNutri','fPgto'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['fTipoLoja','fLoja','fDia','fMuni','fCat','fNutri','fPgto'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var mesOpts=document.getElementById('fMes').options;
+  if(mesOpts.length>1)document.getElementById('fMes').value=mesOpts[mesOpts.length-1].value;
   document.getElementById('fProd').value='';document.getElementById('tblSearch').value='';
   activeCat='';document.querySelectorAll('.cat-card').forEach(function(el){el.classList.remove('active');});
-  excludedFiliais.clear();excludedFiliais.add(JOAO_CORREIA);
+  aplicarDefaultFiliais();
   buildFilialList();updateFilialUI();applyFilters();filterTable();
 }
 
@@ -900,9 +974,10 @@ function buildContext(){
   if(fLoja)filtros.push('loja: '+fLoja);
   if(fCat)filtros.push('categoria: '+fCat);
 
-  // base completa de itens filtrados
+  // base compacta: mes|produto|qtd|valor
   var linhas=f.map(function(r){
-    return r.emissao+' '+r.hora+' | '+r.loja+' | '+r.desc+' | qtd:'+r.qtd+' '+r.un+' | R$'+r.val.toFixed(2)+' | cat:'+r.cat+' | '+r.pagamento;
+    var mes=r.emissao.length>=7?r.emissao.substring(3):'?';
+    return mes+'|'+r.desc.substring(0,25)+'|'+r.qtd+'|'+r.val.toFixed(2);
   }).join('\n');
 
   return 'Você é um assistente financeiro pessoal analisando os dados de compras do Anael.\n'+
@@ -910,8 +985,7 @@ function buildContext(){
     'Contexto'+(filtros.length?' (filtros: '+filtros.join(', ')+')':'')+' :\n'+
     '- Total: R$'+tot.toFixed(2)+' | '+notas+' notas | '+meses+' meses\n'+
     '- Ticket médio: R$'+(notas>0?(tot/notas).toFixed(2):'0')+'\n\n'+
-    'TODOS OS ITENS (data hora | loja | produto | qtd | valor | categoria | pagamento):\n'+
-    linhas;
+    'ITENS (mes/ano|produto|qtd|valorR$):\n'+linhas;
 }
 
 function enviarChat(){
@@ -983,12 +1057,15 @@ function initDashboard(){
   });
   ['asc'].forEach(function(_){
     [...lojas].sort().forEach(function(l){document.getElementById('fLoja').add(new Option(l,l));});
-    [...meses].sort().forEach(function(m){document.getElementById('fMes').add(new Option(m,m));});
+    var mesArr=[...meses].sort();
+    mesArr.forEach(function(m){document.getElementById('fMes').add(new Option(m,m));});
+    if(mesArr.length)document.getElementById('fMes').value=mesArr[mesArr.length-1];
     var diasSorted=[...dias].sort().reverse();
     diasSorted.forEach(function(d){var p=d.split('-');document.getElementById('fDia').add(new Option(p[2]+'/'+p[1]+'/'+p[0],d));});
     [...munis].sort().forEach(function(m){document.getElementById('fMuni').add(new Option(m,m));});
     [...pgtos].sort().forEach(function(p){document.getElementById('fPgto').add(new Option(p,p));});
   });
+  aplicarDefaultFiliais();
   buildFilialList();updateFilialUI();
   document.getElementById('topbarInfo').textContent='Anael Dos Santos Ribeiro · '+new Date().toLocaleDateString('pt-BR');
   applyFilters();
