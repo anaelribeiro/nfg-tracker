@@ -1,27 +1,55 @@
 #!/usr/bin/env python3
-# importar_fatura.py — lê XLSX das faturas Itaú e sobe diferencial na aba 'cartao' do Sheets
+# importar_fatura.py — lê XLSX das faturas Itaú e sobe diferencial no Supabase (tabela cartao)
 
-import glob, time, requests, openpyxl
+import glob, json, time, requests, openpyxl
 from datetime import datetime
+from pathlib import Path
 
-PASTA_FATURAS   = 'faturas'
-APPS_SCRIPT     = 'https://script.google.com/macros/s/AKfycbwpfWeHAm8_wBt-r6LVkCCXVTP3AyygtOTV1Dif7iIiJU712yGwV2_hybAwmJQzcgZ3-Q/exec'
-URL_CARTAO_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSa-dNrsETRbxEi0I6GIoFc6J6Hd2Tpm7w1Yo4kORWwyIauS4kcWDX20wxpkA5mfRTQHvW9fg-WFN72/pub?gid=431304116&single=true&output=csv'
-ABA             = 'cartao'
-HEADER_ROW      = 14
+PASTA_FATURAS = 'faturas'
+HEADER_ROW    = 14
 COLUNAS_REMOVER = ['Nome', 'Número do cartão']
 
-def post_sheets(payload, tentativas=3):
-    for i in range(tentativas):
-        try:
-            r = requests.post(APPS_SCRIPT, json=payload, timeout=30)
-            if r.status_code == 200:
-                return True
-            print(f'  HTTP {r.status_code}, tentativa {i+1}')
-        except Exception as e:
-            print(f'  Erro: {e}, tentativa {i+1}')
-        time.sleep(2)
-    return False
+with open(Path(__file__).parent / 'config_privado.json') as f:
+    _cfg = json.load(f)
+SUPA_URL    = _cfg['supabase_url']
+SUPA_SECRET = _cfg['supabase_secret']
+SUPA_HEADERS = {
+    'apikey': SUPA_SECRET,
+    'Authorization': f'Bearer {SUPA_SECRET}',
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=ignore-duplicates,return=minimal'
+}
+
+def supa_upsert(rows, batch=100):
+    for i in range(0, len(rows), batch):
+        b = rows[i:i+batch]
+        r = requests.post(
+            f'{SUPA_URL}/rest/v1/cartao?on_conflict=data,lancamento,valor',
+            headers=SUPA_HEADERS, json=b, timeout=30
+        )
+        if r.status_code not in (200, 201):
+            print(f'  ERRO {r.status_code}: {r.text[:150]}')
+        print(f'  {min(i+batch, len(rows))}/{len(rows)}', flush=True)
+        time.sleep(0.3)
+
+def buscar_existentes():
+    """Retorna set de chaves data|lancamento|valor já no Supabase."""
+    print('Buscando lançamentos existentes no Supabase...')
+    existentes = set()
+    offset = 0
+    while True:
+        r = requests.get(
+            f'{SUPA_URL}/rest/v1/cartao?select=data,lancamento,valor&limit=1000&offset={offset}',
+            headers=SUPA_HEADERS, timeout=20
+        )
+        rows = r.json()
+        if not rows: break
+        for row in rows:
+            existentes.add(f"{row['data']}|{row['lancamento']}|{row['valor']}")
+        if len(rows) < 1000: break
+        offset += 1000
+    print(f'  {len(existentes)} lançamentos já existentes')
+    return existentes
 
 def chave_lancamento(linha, header):
     """Chave única: data + lançamento + valor"""
@@ -32,27 +60,23 @@ def chave_lancamento(linha, header):
     return f'{data}|{desc}|{valor}'
 
 def buscar_existentes():
-    """Lê a aba cartao publicada e retorna set de chaves já existentes."""
-    print('Buscando lançamentos existentes no Sheets...')
-    try:
-        r = requests.get(URL_CARTAO_CSV, timeout=20, allow_redirects=True)
-        linhas = r.text.strip().split('\n')
-        if len(linhas) < 2:
-            return set(), []
-        import csv, io
-        reader = csv.reader(io.StringIO(r.text))
-        rows = list(reader)
-        header = [h.strip() for h in rows[0]]
-        existentes = set()
-        for row in rows[1:]:
-            if len(row) >= len(header):
-                ln = [v.strip() for v in row]
-                existentes.add(chave_lancamento(ln, header))
-        print(f'  {len(existentes)} lançamentos já existentes')
-        return existentes, header
-    except Exception as e:
-        print(f'  Erro ao buscar existentes: {e}')
-        return set(), []
+    """Retorna set de chaves já no Supabase."""
+    print('Buscando lançamentos existentes no Supabase...')
+    existentes = set()
+    offset = 0
+    while True:
+        r = requests.get(
+            f'{SUPA_URL}/rest/v1/cartao?select=data,lancamento,valor&limit=1000&offset={offset}',
+            headers=SUPA_HEADERS, timeout=20
+        )
+        rows = r.json()
+        if not rows: break
+        for row in rows:
+            existentes.add(f"{row['data']}|{row['lancamento']}|{row['valor']}")
+        if len(rows) < 1000: break
+        offset += 1000
+    print(f'  {len(existentes)} lançamentos já existentes')
+    return existentes
 
 def ler_fatura(path):
     wb = openpyxl.load_workbook(path, data_only=True)
@@ -93,50 +117,56 @@ def main():
 
     print(f'{len(arquivos)} arquivo(s) encontrado(s)\n')
 
-    existentes, header_sheets = buscar_existentes()
-    aba_vazia = len(existentes) == 0
+    existentes = buscar_existentes()
 
     todos_novos = []
-    header_local = None
 
     for path in arquivos:
         nome = path.split('/')[-1]
         print(f'Lendo {nome}...')
         try:
             header, lancamentos = ler_fatura(path)
-            if header_local is None:
-                header_local = header
-
             novos = []
             for ln in lancamentos:
                 chave = chave_lancamento(ln, header)
                 if chave not in existentes:
                     novos.append(ln)
                     existentes.add(chave)
-
             todos_novos.extend(novos)
             print(f'  {len(lancamentos)} lidos, {len(novos)} novos')
         except Exception as e:
             print(f'  ERRO: {e}')
 
     if not todos_novos:
-        print('\nNenhum lançamento novo. Sheets já está atualizado.')
+        print('\nNenhum lançamento novo. Supabase já está atualizado.')
         return
 
-    # sobe header só se aba estava vazia
-    if aba_vazia and header_local:
-        post_sheets({'aba': ABA, 'action': 'header_aba', 'row': header_local})
-        time.sleep(0.5)
+    # converte listas para dicts usando header do primeiro arquivo
+    header_ref = None
+    for path in arquivos:
+        try:
+            h, _ = ler_fatura(path)
+            header_ref = h
+            break
+        except: pass
 
     print(f'\nSubindo {len(todos_novos)} novos lançamentos...')
-    BATCH = 50
-    for i in range(0, len(todos_novos), BATCH):
-        batch = todos_novos[i:i+BATCH]
-        ok = post_sheets({'aba': ABA, 'rows': batch})
-        print(f'  Batch {i//BATCH + 1}: {"OK" if ok else "ERRO"}')
-        time.sleep(0.3)
+    col_map = {'Data':'data','Lançamento':'lancamento','Parcelamento':'parcelamento',
+               'Valor':'valor','Titularidade':'titularidade','Tipo do cartão':'tipo_cartao'}
+    rows_dict = []
+    for ln in todos_novos:
+        if header_ref:
+            d = {col_map.get(header_ref[i], header_ref[i].lower()): ln[i] for i in range(len(ln))}
+        else:
+            d = {'data': ln[0], 'lancamento': ln[1], 'parcelamento': ln[2],
+                 'valor': ln[3], 'titularidade': ln[4], 'tipo_cartao': ln[5]}
+        # converte valor para float
+        try: d['valor'] = float(str(d.get('valor',0)).replace(',','.'))
+        except: d['valor'] = 0
+        rows_dict.append(d)
 
-    print(f'\nConcluído! {len(todos_novos)} novos lançamentos na aba "{ABA}".')
+    supa_upsert(rows_dict)
+    print(f'\nConcluído! {len(todos_novos)} novos lançamentos no Supabase.')
 
 if __name__ == '__main__':
     main()

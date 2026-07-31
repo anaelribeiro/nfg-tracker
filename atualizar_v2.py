@@ -16,13 +16,21 @@ from datetime import datetime
 warnings.filterwarnings("ignore")
 
 # ── Configuração ──────────────────────────────────────────────────
-BASE_DIR        = Path(__file__).parent
-CHROME_BIN      = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-SHEET_ID        = "1Z69HQfCHm_wW3aaP9mMyMa4zDNhqPbJd5NaIX9i3b-c"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpfWeHAm8_wBt-r6LVkCCXVTP3AyygtOTV1Dif7iIiJU712yGwV2_hybAwmJQzcgZ3-Q/exec"
-FILIAIS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSa-dNrsETRbxEi0I6GIoFc6J6Hd2Tpm7w1Yo4kORWwyIauS4kcWDX20wxpkA5mfRTQHvW9fg-WFN72/pub?gid=1900593584&single=true&output=csv"
+BASE_DIR   = Path(__file__).parent
+CHROME_BIN = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-# Colunas da aba itens (v2)
+with open(BASE_DIR / 'config_privado.json') as f:
+    _cfg = json.load(f)
+SUPA_URL    = _cfg['supabase_url']
+SUPA_SECRET = _cfg['supabase_secret']
+SUPA_HEADERS = {
+    'apikey': SUPA_SECRET,
+    'Authorization': f'Bearer {SUPA_SECRET}',
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=ignore-duplicates,return=minimal'
+}
+
+# Colunas da tabela itens
 CAMPOS_ITENS = [
     "chave", "numero", "serie", "emissao", "hora", "tipo_nota",
     "cnpj_emitente", "loja", "municipio",
@@ -30,9 +38,43 @@ CAMPOS_ITENS = [
     "codigo", "descricao", "ncm", "quantidade", "unidade",
     "valor_unit", "valor_total_item"
 ]
-
-# Colunas da aba filiais
 CAMPOS_FILIAIS = ["cnpj", "nome", "fantasia", "logradouro", "numero", "bairro", "municipio", "uf"]
+
+# ── Supabase helpers ──────────────────────────────────────────────
+
+def supa_upsert(tabela, rows, conflict_cols, batch=100):
+    for i in range(0, len(rows), batch):
+        b = rows[i:i+batch]
+        r = requests.post(
+            f'{SUPA_URL}/rest/v1/{tabela}?on_conflict={conflict_cols}',
+            headers=SUPA_HEADERS, json=b, timeout=30
+        )
+        if r.status_code not in (200, 201):
+            print(f'  [!] Supabase {tabela} erro {r.status_code}: {r.text[:150]}')
+        print(f'  {min(i+batch, len(rows))}/{len(rows)}', flush=True)
+        time.sleep(0.3)
+
+def supa_get_chaves():
+    """Retorna set de chaves já no Supabase (tabela itens)."""
+    chaves = set()
+    offset = 0
+    while True:
+        r = requests.get(
+            f'{SUPA_URL}/rest/v1/itens?select=chave&limit=1000&offset={offset}',
+            headers=SUPA_HEADERS, timeout=20
+        )
+        rows = r.json()
+        if not rows: break
+        for row in rows:
+            chaves.add(row['chave'])
+        if len(rows) < 1000: break
+        offset += 1000
+    return chaves
+
+def supa_get_cnpjs():
+    """Retorna set de CNPJs já no Supabase (tabela filiais)."""
+    r = requests.get(f'{SUPA_URL}/rest/v1/filiais?select=cnpj&limit=1000', headers=SUPA_HEADERS, timeout=20)
+    return {row['cnpj'] for row in r.json()}
 
 # ── Login ─────────────────────────────────────────────────────────
 
@@ -42,58 +84,6 @@ def fazer_login():
     subprocess.Popen([CHROME_BIN, "https://nfg.sefaz.rs.gov.br/govbr-redirect.aspx"])
     input("    [ENTER após login] ")
     print("[✓] Continuando...")
-
-# ── Google Sheets ─────────────────────────────────────────────────
-
-def sheets_get_chaves():
-    """Retorna set de chaves já na aba itens."""
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=itens"
-    try:
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200: return set()
-        text = r.text.replace('\r\n', '\n').replace('\r', '\n')
-        lines = text.strip().split('\n')
-        if not lines: return set()
-        # verifica se tem cabeçalho
-        first = lines[0].replace('"','').split(',')[0].strip()
-        start = 1 if first == 'chave' else 0
-        chaves = set()
-        for line in lines[start:]:
-            if line.strip():
-                chave = line.split(',')[0].replace('"','').strip()
-                if len(chave) == 44:
-                    chaves.add(chave)
-        return chaves
-    except Exception as e:
-        print(f"[!] Erro ao ler Sheets: {e}")
-        return set()
-
-def sheets_get_cnpjs_filiais():
-    """Retorna set de CNPJs já na aba filiais via Apps Script doGet (sem cache)."""
-    try:
-        r = requests.get(APPS_SCRIPT_URL + "?aba=filiais", timeout=15)
-        if r.status_code != 200: return set()
-        return set(r.json())
-    except:
-        return set()
-
-def sheets_post(aba, rows, header=None):
-    """Sobe linhas para uma aba. Se aba vazia, manda cabeçalho primeiro."""
-    try:
-        if header:
-            requests.post(APPS_SCRIPT_URL,
-                json={"action": "header_aba", "aba": aba, "row": header},
-                timeout=30)
-        BATCH = 50
-        for i in range(0, len(rows), BATCH):
-            batch = rows[i:i+BATCH]
-            requests.post(APPS_SCRIPT_URL,
-                json={"aba": aba, "rows": batch},
-                timeout=60)
-            print(f"  {min(i+BATCH, len(rows))}/{len(rows)}", flush=True)
-            time.sleep(0.3)
-    except Exception as e:
-        print(f"[!] Erro ao subir para '{aba}': {e}")
 
 # ── NFG — busca notas ─────────────────────────────────────────────
 
@@ -323,10 +313,10 @@ def main():
     print("\n[1/5] Login no NFG...")
     fazer_login()
 
-    # 2. Chaves existentes no Sheets
-    print("[2/5] Verificando chaves no Google Sheets...")
-    chaves_existentes = sheets_get_chaves()
-    cnpjs_existentes  = sheets_get_cnpjs_filiais()
+    # 2. Chaves existentes no Supabase
+    print("[2/5] Verificando chaves no Supabase...")
+    chaves_existentes = supa_get_chaves()
+    cnpjs_existentes  = supa_get_cnpjs()
     print(f"      {len(chaves_existentes)} chaves existentes | {len(cnpjs_existentes)} filiais")
 
     # 3. Busca notas no NFG
@@ -395,22 +385,19 @@ def main():
         print(f"→ {len(itens)} itens")
         time.sleep(0.3)
 
-    # 5. Sobe para o Sheets
-    print(f"\n[5/5] Subindo para Google Sheets...")
+    # 5. Sobe para o Supabase
+    print(f"\n[5/5] Subindo para Supabase...")
 
     # filiais novas
     if filiais_novas:
         print(f"  → {len(filiais_novas)} filiais novas...")
-        precisa_header_filiais = len(cnpjs_existentes) == 0
-        linhas_filiais = [[v[k] for k in CAMPOS_FILIAIS] for v in filiais_novas.values()]
-        sheets_post("filiais", linhas_filiais,
-                    header=CAMPOS_FILIAIS if precisa_header_filiais else None)
+        supa_upsert('filiais', list(filiais_novas.values()), 'cnpj')
 
     # itens novos
     if linhas_itens:
         print(f"  → {len(linhas_itens)} itens novos...")
-        sheets_post("itens", linhas_itens,
-                    header=CAMPOS_ITENS if precisa_header else None)
+        rows_itens = [dict(zip(CAMPOS_ITENS, linha)) for linha in linhas_itens]
+        supa_upsert('itens', rows_itens, 'chave,codigo')
 
     print(f"\n[✓] Concluído: +{len(novas)} notas, +{len(linhas_itens)} itens")
 

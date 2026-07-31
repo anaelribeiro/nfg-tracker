@@ -11,3 +11,6 @@ data/dados.js
 faturas/
 venv/
 .DS_Store
+config_privado.json
+config_privado.js
+pix/
