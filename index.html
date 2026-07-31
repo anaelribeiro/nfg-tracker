@@ -210,6 +210,7 @@ body.light tr:hover td{background:#f8fafc}
   <button class="tab-btn" onclick="showTab('analises',this)">Análises</button>
   <button class="tab-btn" onclick="showTab('fatura',this)">💳 Fatura</button>
   <button class="tab-btn" onclick="showTab('pix',this)">💸 PIX</button>
+  <button class="tab-btn" onclick="showTab('saidas',this)">💰 Saídas</button>
 </div>
 
 <!-- tab: resumo -->
@@ -411,6 +412,61 @@ body.light tr:hover td{background:#f8fafc}
         <th class="money">Valor R$</th>
       </tr></thead>
       <tbody id="tblPix"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- tab: saidas -->
+<div class="tab-pane" id="tab-saidas">
+<div class="section-title">Saídas — Cartão + PIX</div>
+
+<!-- KPIs -->
+<div class="cards">
+  <div class="card"><div class="lbl">Total saídas</div><div class="val" style="color:var(--pink)" id="skTotal">—</div><div class="sub" id="skSub">—</div></div>
+  <div class="card"><div class="lbl">Cartão</div><div class="val" style="color:var(--blue)" id="skCartao">—</div><div class="sub" id="skCartaoPct">—</div></div>
+  <div class="card"><div class="lbl">PIX</div><div class="val" style="color:var(--green)" id="skPix">—</div><div class="sub" id="skPixPct">—</div></div>
+  <div class="card"><div class="lbl">Transações</div><div class="val" style="color:var(--purple)" id="skQtd">—</div><div class="sub">total</div></div>
+</div>
+
+<!-- filtros -->
+<div class="filters" style="margin-bottom:14px">
+  <div class="filters-row">
+    <div class="fgrp"><label>Mês</label><select id="sMes" onchange="applySaidas()"><option value="">Todos</option></select></div>
+    <div class="fgrp"><label>Canal</label>
+      <select id="sCanal" onchange="applySaidas()">
+        <option value="">Todos</option>
+        <option value="Cartão">💳 Cartão</option>
+        <option value="PIX">💸 PIX</option>
+      </select>
+    </div>
+    <div class="fgrp"><label>Categoria</label><select id="sCat" onchange="applySaidas()"><option value="">Todas</option></select></div>
+    <div class="fgrp"><label>Buscar</label><input type="text" id="sBusca" placeholder="descrição..." oninput="applySaidas()" style="min-width:140px"></div>
+    <button class="btn" onclick="document.getElementById('sMes').value='';document.getElementById('sCanal').value='';document.getElementById('sCat').value='';document.getElementById('sBusca').value='';applySaidas()">✕ Limpar</button>
+    <div class="fstat"><span id="sCount">—</span> transações · R$ <span id="sTotal" style="color:var(--blue);font-weight:600">—</span></div>
+  </div>
+</div>
+
+<div class="grid2" style="margin-bottom:14px">
+  <div class="box"><h2>Saídas por mês (R$)</h2><canvas id="cSaidasMes"></canvas></div>
+  <div class="box"><h2>Cartão vs PIX</h2><canvas id="cSaidasCanal"></canvas></div>
+</div>
+<div class="box" style="margin-bottom:14px">
+  <h2>Por categoria (R$) <span style="font-size:.65rem;color:var(--muted);font-weight:400">— clique para filtrar</span></h2>
+  <canvas id="cSaidasCat" style="max-height:320px;cursor:pointer"></canvas>
+</div>
+<div class="box">
+  <h2>Transações <em id="lblSaidas" style="color:var(--text);font-style:normal;font-size:.7rem"></em></h2>
+  <div class="tbl-wrap" style="max-height:500px">
+    <table>
+      <thead><tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Categoria</th>
+        <th class="center">Canal</th>
+        <th class="money">Valor R$</th>
+      </tr></thead>
+      <tbody id="tblSaidas"></tbody>
     </table>
   </div>
 </div>
@@ -1552,6 +1608,114 @@ function applyPix(){
   }).join('');
 }
 
+// ── Saídas (Cartão + PIX) ─────────────────────────────────────────
+function buildSaidas(){
+  var cats=new Set();
+  ALL_CARTAO.forEach(function(r){if(r.cat)cats.add(r.cat);});
+  ALL_PIX.forEach(function(r){if(r.cat)cats.add(r.cat);});
+  var selC=document.getElementById('sCat');
+  if(selC)Array.from(cats).sort().forEach(function(c){selC.add(new Option(c,c));});
+  // popula meses
+  var meses=new Set();
+  ALL_CARTAO.forEach(function(r){if(r.mes)meses.add(r.mes);});
+  ALL_PIX.forEach(function(r){var p=(r.data||'').split('/');var m=p[2]+'-'+p[1];if(m&&m!=='-')meses.add(m);});
+  var selM=document.getElementById('sMes');
+  if(selM){
+    var mArr=Array.from(meses).sort().reverse();
+    mArr.forEach(function(m){selM.add(new Option(m,m));});
+    if(selM.options.length>1)selM.value=selM.options[1].value;
+  }
+  applySaidas();
+}
+
+function applySaidas(){
+  var mes=document.getElementById('sMes').value;
+  var canal=document.getElementById('sCanal').value;
+  var cat=document.getElementById('sCat').value;
+  var busca=(document.getElementById('sBusca').value||'').toLowerCase();
+
+  // monta lista unificada
+  var todos=[];
+  ALL_CARTAO.forEach(function(r){
+    if(!r.data||!r.val)return;
+    var p=r.data.split('/'); var rMes=p[2]+'-'+p[1];
+    todos.push({data:r.data,mes:rMes,desc:r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',val:r.val});
+  });
+  ALL_PIX.forEach(function(r){
+    if(!r.data||!r.valor)return;
+    var p=(r.data||'').split('/'); var rMes=p[2]+'-'+p[1];
+    todos.push({data:r.data,mes:rMes,desc:r.destinatario||'',cat:r.cat||'❓ Outros',canal:'PIX',val:parseFloat(r.valor)||0});
+  });
+
+  var f=todos.filter(function(r){
+    return (!mes||r.mes===mes)&&
+           (!canal||r.canal===canal)&&
+           (!cat||r.cat===cat)&&
+           (!busca||r.desc.toLowerCase().includes(busca));
+  });
+
+  var total=f.reduce(function(s,r){return s+r.val;},0);
+  var totCartao=f.filter(function(r){return r.canal==='Cartão';}).reduce(function(s,r){return s+r.val;},0);
+  var totPix=f.filter(function(r){return r.canal==='PIX';}).reduce(function(s,r){return s+r.val;},0);
+
+  document.getElementById('skTotal').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('skSub').textContent=(mes||'todos os meses');
+  document.getElementById('skCartao').textContent='R$ '+totCartao.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('skCartaoPct').textContent=total>0?Math.round(totCartao/total*100)+'% do total':'—';
+  document.getElementById('skPix').textContent='R$ '+totPix.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('skPixPct').textContent=total>0?Math.round(totPix/total*100)+'% do total':'—';
+  document.getElementById('skQtd').textContent=f.length;
+  document.getElementById('sCount').textContent=f.length;
+  document.getElementById('sTotal').textContent=total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('lblSaidas').textContent=f.length+' transações';
+
+  // gráfico por mês stacked
+  var byMes={};
+  f.forEach(function(r){
+    if(!byMes[r.mes])byMes[r.mes]={cartao:0,pix:0};
+    if(r.canal==='Cartão')byMes[r.mes].cartao+=r.val;
+    else byMes[r.mes].pix+=r.val;
+  });
+  var mesKeys=Object.keys(byMes).sort();
+  mkBar('cSaidasMes',mesKeys,[
+    {label:'Cartão',data:mesKeys.map(function(m){return +byMes[m].cartao.toFixed(2);}),backgroundColor:'#38bdf8',borderRadius:3,stack:'s'},
+    {label:'PIX',data:mesKeys.map(function(m){return +byMes[m].pix.toFixed(2);}),backgroundColor:'#34d399',borderRadius:3,stack:'s'}
+  ]);
+
+  // donut canal
+  mkDonut('cSaidasCanal',['💳 Cartão','💸 PIX'],[+totCartao.toFixed(2),+totPix.toFixed(2)]);
+
+  // gráfico por categoria
+  var byCat={};
+  f.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
+  var catSorted=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
+  if(charts['cSaidasCat'])charts['cSaidasCat'].destroy();
+  charts['cSaidasCat']=new Chart(document.getElementById('cSaidasCat'),{type:'bar',
+    data:{labels:catSorted.map(function(x){return x[0];}),datasets:[{data:catSorted.map(function(x){return +x[1].toFixed(2);}),backgroundColor:COLORS,borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2});}}}},
+      onClick:function(_,els){
+        if(!els.length)return;
+        var selCat=document.getElementById('sCat');
+        var c=catSorted[els[0].index][0];
+        selCat.value=selCat.value===c?'':c;
+        applySaidas();
+      },
+      scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e2536'}},y:{ticks:{color:'#475569'},grid:{color:'#1e2536'}}}}});
+
+  // tabela
+  var fSorted=f.slice().sort(function(a,b){return b.data.split('/').reverse().join('').localeCompare(a.data.split('/').reverse().join(''));});
+  document.getElementById('tblSaidas').innerHTML=fSorted.map(function(r){
+    var canalBadge=r.canal==='Cartão'?'<span style="color:var(--blue);font-size:.75rem">💳</span>':'<span style="color:var(--green);font-size:.75rem">💸</span>';
+    return '<tr>'+
+      '<td class="date-td">'+r.data+'</td>'+
+      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,40)+'</td>'+
+      '<td style="font-size:.72rem;white-space:nowrap">'+r.cat+'</td>'+
+      '<td class="center">'+canalBadge+' '+r.canal+'</td>'+
+      '<td class="money">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
+      '</tr>';
+  }).join('');
+}
+
 // ── Abas ──────────────────────────────────────────────────────────
 function showTab(id,btn){
   document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
@@ -1606,6 +1770,7 @@ function initDashboard(){
     if(selMP.options.length>1)selMP.value=selMP.options[1].value;
   }
   applyPix();
+  buildSaidas();
   document.getElementById('topbarInfo').textContent='Anael Dos Santos Ribeiro · '+new Date().toLocaleDateString('pt-BR');
   applyFilters();
 }
