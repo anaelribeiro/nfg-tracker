@@ -1481,9 +1481,14 @@ function initDashboard(){
   applyFilters();
 }
 
-// inicialização após todos os scripts carregarem
-window.addEventListener('load', loadData);
+// carrega config e inicia
+fetch('config_privado.js')
+  .then(function(r){return r.ok?r.text():Promise.reject();})
+  .then(function(code){
+    try{eval(code);}catch(e){}
+    loadData();
+  })
+  .catch(function(){loadData();});
 </script>
-<script src="config_privado.js" onerror="void(0)"></script>
 </body>
 </html>
