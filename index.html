@@ -552,12 +552,36 @@ function supaFetchAll(tabela, select){
   return page();
 }
 
+var VERCEL_CONFIG_URL='https://portfolio-api-ten-ecru.vercel.app/api/config';
+
 function loadData(){
   var msg=document.createElement('div');msg.id='loadingMsg';
   msg.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111827;color:#38bdf8;padding:20px 32px;border-radius:12px;font-size:1rem;z-index:9999;border:1px solid #1e2d45;text-align:center';
   msg.textContent='Carregando dados...';document.body.appendChild(msg);
 
-  if(typeof SUPA_URL==='undefined'||typeof SUPA_KEY==='undefined'||!SUPA_URL){
+  // se já tem config local (localhost), usa direto
+  if(typeof SUPA_URL!=='undefined'&&SUPA_URL){
+    _iniciarDashboard(msg);
+    return;
+  }
+  // tenta buscar config da Vercel
+  fetch(VERCEL_CONFIG_URL)
+    .then(function(r){return r.ok?r.json():Promise.reject('config error');})
+    .then(function(cfg){
+      window.SUPA_URL=cfg.url;
+      window.SUPA_KEY=cfg.key;
+      _iniciarDashboard(msg);
+    })
+    .catch(function(){
+      msg.innerHTML='🔒 Dashboard privado<br><span style="font-size:.8rem;color:#94a3b8">Credenciais não configuradas</span>';
+      msg.style.color='#fb923c';
+      document.getElementById('loadBadge').textContent='🔒 privado';
+      document.getElementById('loadBadge').className='badge warn';
+    });
+}
+
+function _iniciarDashboard(msg){
+  if(typeof SUPA_URL==='undefined'||!SUPA_URL){
     msg.innerHTML='🔒 Dashboard privado<br><span style="font-size:.8rem;color:#94a3b8">Acesse localmente com o arquivo config_privado.js</span>';
     msg.style.color='#fb923c';
     document.getElementById('loadBadge').textContent='🔒 privado';
