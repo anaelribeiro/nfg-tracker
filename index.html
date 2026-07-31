@@ -115,7 +115,17 @@ body.light tr:hover td{background:#f8fafc}
 #chatSend{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:.8rem;cursor:pointer}
 @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.main{padding:12px 14px}.topbar{padding:10px 14px}.topbar h1{font-size:.95rem}.cards{gap:8px}.card{min-width:calc(50% - 4px);padding:12px 14px}.card .val{font-size:1.35rem}.grid4{grid-template-columns:1fr 1fr}.fgrp select,.fgrp input[type=text]{min-width:0;width:100%}canvas{max-height:180px}table{font-size:.68rem}th,td{padding:5px 6px}.desc-td{max-width:120px}.loja-mini,.date-td{display:none}}
-/* login */
+/* modal edição override */
+#overrideModal{display:none;position:fixed;inset:0;background:#000a;z-index:2000;align-items:center;justify-content:center}
+#overrideModal.show{display:flex}
+.override-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 28px;width:380px;max-width:90vw}
+.override-box h3{font-size:.9rem;margin-bottom:16px;color:var(--text)}
+.override-box label{font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:3px}
+.override-box select,.override-box input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px 10px;font-size:.8rem;margin-bottom:12px}
+.override-box .btns{display:flex;gap:8px;margin-top:4px}
+.override-box .btns button{flex:1;padding:8px;border-radius:7px;font-size:.78rem;cursor:pointer;border:none}
+.override-box .btns .save{background:var(--blue);color:#fff}
+.override-box .btns .cancel{background:var(--card);border:1px solid var(--border);color:var(--text)}
 #loginScreen{display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center}
 #loginScreen.show{display:flex}
 .login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:36px 40px;width:320px;max-width:90vw;text-align:center}
@@ -465,6 +475,7 @@ body.light tr:hover td{background:#f8fafc}
         <th>Categoria</th>
         <th class="center">Canal</th>
         <th class="money">Valor R$</th>
+        <th></th>
       </tr></thead>
       <tbody id="tblSaidas"></tbody>
     </table>
@@ -499,6 +510,21 @@ body.light tr:hover td{background:#f8fafc}
     <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
     <button onclick="fazerLogin()">Entrar</button>
     <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- modal edição categoria/descrição -->
+<div id="overrideModal">
+  <div class="override-box">
+    <h3>✏️ Editar lançamento</h3>
+    <label>Descrição</label>
+    <input type="text" id="ovDesc" placeholder="Descrição personalizada...">
+    <label>Categoria</label>
+    <select id="ovCat"></select>
+    <div class="btns">
+      <button class="cancel" onclick="fecharOverride()">Cancelar</button>
+      <button class="save" onclick="salvarOverride()">Salvar</button>
+    </div>
   </div>
 </div>
 
@@ -640,6 +666,8 @@ function fazerLogin(){
       window.SUPA_URL=res.d.url;
       window.SUPA_KEY=res.d.key;
       localStorage.setItem('nfg_auth',JSON.stringify({user:user,pass:pass}));
+      _authParams='user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass);
+      loadOverrides(_authParams);
       document.getElementById('loginScreen').classList.remove('show');
       _iniciarDashboard(document.getElementById('loadingMsg')||criarLoadingMsg());
     })
@@ -669,6 +697,8 @@ function loadData(){
         if(res.ok){
           window.SUPA_URL=res.d.url;
           window.SUPA_KEY=res.d.key;
+          _authParams='user='+encodeURIComponent(saved.user)+'&pass='+encodeURIComponent(saved.pass);
+          loadOverrides(_authParams);
           _iniciarDashboard(criarLoadingMsg());
         } else {
           localStorage.removeItem('nfg_auth');
@@ -1518,6 +1548,72 @@ function applyFatura(){
   }).join('');
 }
 
+// ── Overrides de categoria/descrição ─────────────────────────────
+var OVERRIDES={};
+var _ovChave='', _ovTipo='';
+var VERCEL_OVERRIDES_URL='https://portfolio-api-ten-ecru.vercel.app/api/overrides';
+var _authParams='';
+
+function loadOverrides(authP){
+  _authParams=authP;
+  fetch(VERCEL_OVERRIDES_URL+'?'+authP)
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      rows.forEach(function(r){OVERRIDES[r.chave]={cat:r.categoria,desc:r.descricao};});
+    })
+    .catch(function(){});
+}
+
+function abrirOverride(chave, tipo, descAtual, catAtual){
+  _ovChave=chave; _ovTipo=tipo;
+  document.getElementById('ovDesc').value=descAtual||'';
+  // popula categorias
+  var cats=Object.keys(tipo==='pix'?CAT_PIX:CAT_CARTAO).concat(['❓ Outros']);
+  var sel=document.getElementById('ovCat');
+  sel.innerHTML='';
+  cats.forEach(function(c){
+    var opt=document.createElement('option');
+    opt.value=c; opt.textContent=c;
+    if(c===catAtual)opt.selected=true;
+    sel.appendChild(opt);
+  });
+  document.getElementById('overrideModal').classList.add('show');
+  document.getElementById('ovDesc').focus();
+}
+
+function fecharOverride(){
+  document.getElementById('overrideModal').classList.remove('show');
+}
+
+function salvarOverride(){
+  var desc=document.getElementById('ovDesc').value.trim();
+  var cat=document.getElementById('ovCat').value;
+  var btn=document.querySelector('#overrideModal .save');
+  btn.textContent='Salvando...'; btn.disabled=true;
+
+  fetch(VERCEL_OVERRIDES_URL+'?'+_authParams, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      chave:_ovChave, tipo:_ovTipo,
+      categoria:cat||null, descricao:desc||null,
+      user: _authParams.split('user=')[1]?decodeURIComponent(_authParams.split('user=')[1].split('&')[0]):'',
+      pass: _authParams.split('pass=')[1]?decodeURIComponent(_authParams.split('pass=')[1]):'',
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(){
+    OVERRIDES[_ovChave]={cat:cat||null,desc:desc||null};
+    fecharOverride();
+    // re-aplica todas as abas afetadas
+    applySaidas();
+    applyFatura();
+    applyPix();
+  })
+  .catch(function(){alert('Erro ao salvar.');})
+  .finally(function(){btn.textContent='Salvar';btn.disabled=false;});
+}
+
 // ── PIX ───────────────────────────────────────────────────────────
 function applyPix(){
   var mes=document.getElementById('fpMes').value;
@@ -1639,12 +1735,14 @@ function applySaidas(){
   ALL_CARTAO.forEach(function(r){
     if(!r.data||!r.val)return;
     var p=r.data.split('/'); var rMes=p[2]+'-'+p[1];
-    todos.push({data:r.data,mes:rMes,desc:r.desc||r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',val:r.val});
+    var chave='cartao|'+r.data+'|'+(r.desc||'')+'|'+r.val;
+    todos.push({chave:chave,tipo:'cartao',data:r.data,mes:rMes,desc:r.desc||r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',val:r.val});
   });
   ALL_PIX.forEach(function(r){
     if(!r.data||!r.valor)return;
     var p=(r.data||'').split('/'); var rMes=p[2]+'-'+p[1];
-    todos.push({data:r.data,mes:rMes,desc:r.destinatario||'',cat:r.cat||'❓ Outros',canal:'PIX',val:parseFloat(r.valor)||0});
+    var chave='pix|'+r.data+'|'+(r.destinatario||'')+'|'+r.valor;
+    todos.push({chave:chave,tipo:'pix',data:r.data,mes:rMes,desc:r.destinatario||'',cat:r.cat||'❓ Outros',canal:'PIX',val:parseFloat(r.valor)||0});
   });
 
   var f=todos.filter(function(r){
@@ -1705,13 +1803,18 @@ function applySaidas(){
   // tabela
   var fSorted=f.slice().sort(function(a,b){return b.data.split('/').reverse().join('').localeCompare(a.data.split('/').reverse().join(''));});
   document.getElementById('tblSaidas').innerHTML=fSorted.map(function(r){
+    var ov=OVERRIDES[r.chave]||{};
+    var desc=ov.desc||r.desc; var cat=ov.cat||r.cat;
     var canalBadge=r.canal==='Cartão'?'<span style="color:var(--blue);font-size:.75rem">💳</span>':'<span style="color:var(--green);font-size:.75rem">💸</span>';
+    var editBtn='<button onclick="abrirOverride(\''+r.chave+'\',\''+r.tipo+'\',\''+desc.replace(/'/g,"\\'")+'\',' +
+      '\''+cat.replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:var(--muted)" title="Editar">✏️</button>';
     return '<tr>'+
       '<td class="date-td">'+r.data+'</td>'+
-      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,40)+'</td>'+
-      '<td style="font-size:.72rem;white-space:nowrap">'+r.cat+'</td>'+
+      '<td class="desc-td" title="'+desc+'">'+desc.substring(0,38)+'</td>'+
+      '<td style="font-size:.72rem;white-space:nowrap">'+cat+'</td>'+
       '<td class="center">'+canalBadge+' '+r.canal+'</td>'+
       '<td class="money">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
+      '<td class="center">'+editBtn+'</td>'+
       '</tr>';
   }).join('');
 }
