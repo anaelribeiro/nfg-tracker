@@ -180,43 +180,15 @@ def gerar():
         f"const TOTAL_GASTO={total_gasto:.2f};",
     ])
 
-    # salva dados.js
+    # salva dados.js — único arquivo gerado, dashboard.html não é tocado
     dados_js = "// NFG Tracker dados — não commitar\n" + js_vars + "\n"
     (DATA_DIR/"dados.js").write_text(dados_js, encoding="utf-8")
+    print(f"[✓] dados.js atualizado ({total_notas} notas, {len(itens)} itens)")
 
-    # lê template do index.html (que tem o código JS completo)
-    # extrai só o HTML+código sem os dados
-    index = BASE_DIR/"index.html"
-    if not index.exists():
-        print("[!] index.html não encontrado, não foi possível gerar dashboard.html")
-        return
-
-    html = index.read_text(encoding="utf-8")
-
-    # o index.html carrega dados do Sheets — para o dashboard local,
-    # substituímos o loader por <script src="dados.js"></script>
-    import re
-    # remove o loader script (entre primeiro <script> e </script>)
-    lines = html.split('\n')
-    script_tags = [(i,l) for i,l in enumerate(lines) if l.strip() in ('<script>','</script>')]
-    if len(script_tags) >= 2:
-        loader_start = script_tags[0][0]
-        loader_end   = script_tags[1][0]
-        # substitui loader por dados.js
-        new_lines = (lines[:loader_start]
-            + ['<script src="dados.js"></script>']
-            + lines[loader_end+1:])
-        dash_html = '\n'.join(new_lines)
-    else:
-        dash_html = html
-
-    # atualiza data no topbar
-    dash_html = re.sub(r'NFG Tracker · [\d/]+ [\d:]+',
-        f'NFG Tracker · {datetime.now().strftime("%d/%m/%Y %H:%M")}', dash_html)
-
-    (DATA_DIR/"dashboard.html").write_text(dash_html, encoding="utf-8")
-    print(f"[✓] Dashboard: {DATA_DIR}/dashboard.html ({total_notas} notas, {len(itens)} itens)")
-    os.system(f"open '{DATA_DIR}/dashboard.html'")
+    # abre dashboard local se existir
+    dash = DATA_DIR/"dashboard.html"
+    if dash.exists():
+        os.system(f"open '{dash}'")
 
 if __name__ == "__main__":
     gerar()
