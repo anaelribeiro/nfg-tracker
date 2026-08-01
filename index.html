@@ -368,6 +368,7 @@ body.light tr:hover td{background:#f8fafc}
         <th>Data</th>
         <th>Descrição</th>
         <th>Categoria</th>
+        <th>Banco</th>
         <th>Parcelamento</th>
         <th class="center">Status</th>
         <th class="money">Valor R$</th>
@@ -744,7 +745,8 @@ function buildItensFromDB(rows){buildItens(rows);}
 function buildCartaoFromDB(rows){
   var adapted=rows.map(function(r){
     return {'Data':r.data||'','Lançamento':r.lancamento||'','Parcelamento':r.parcelamento||'',
-            'Valor':String(r.valor||0),'Titularidade':r.titularidade||''};
+            'Valor':String(r.valor||0),'Titularidade':r.titularidade||'',
+            '_banco': r.tipo_cartao==='Nubank'?'Nubank':'Itaú'};
   });
   buildCartao(adapted);
 }
@@ -1451,6 +1453,7 @@ function buildCartao(rows){
       data:r['Data'], mes:mes,
       desc:r['Lançamento']||'',
       parcela:r['Parcelamento']||'',
+      banco:r['_banco']||'Itaú',
       val:val,
       cat:catCartao,
       rastreado:!!nfg,
@@ -1544,10 +1547,14 @@ function applyFatura(){
       ? '<span style="color:var(--green);font-size:.8rem">✅</span>'
       : '<span style="color:var(--orange);font-size:.8rem">❌</span>';
     var nfeLink=r.nfg?'<a href="https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe='+r.nfg.chave+'" target="_blank" style="font-size:.9rem;margin-left:4px">🔗</a>':'';
+    var bancoBadge=r.banco==='Nubank'
+      ? '<span style="color:#820ad1;font-weight:600;font-size:.7rem">💜 Nubank</span>'
+      : '<span style="color:#ec7000;font-weight:600;font-size:.7rem">🧡 Itaú</span>';
     return '<tr>'+
       '<td class="date-td">'+r.data+'</td>'+
-      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,40)+'</td>'+
+      '<td class="desc-td" title="'+r.desc+'">'+r.desc.substring(0,38)+'</td>'+
       '<td style="font-size:.72rem;white-space:nowrap">'+r.cat+'</td>'+
+      '<td>'+bancoBadge+'</td>'+
       '<td style="color:var(--muted);font-size:.7rem">'+r.parcela+'</td>'+
       '<td class="center">'+badge+nfeLink+'</td>'+
       '<td class="money">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
@@ -1743,7 +1750,7 @@ function applySaidas(){
     if(!r.data||!r.val)return;
     var p=r.data.split('/'); var rMes=p[2]+'-'+p[1];
     var chave='cartao|'+r.data+'|'+(r.desc||'')+'|'+r.val;
-    todos.push({chave:chave,tipo:'cartao',data:r.data,mes:rMes,desc:r.desc||r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',val:r.val});
+    todos.push({chave:chave,tipo:'cartao',data:r.data,mes:rMes,desc:r.desc||r.lancamento||'',cat:r.cat||'❓ Outros',canal:'Cartão',banco:r.banco||'Itaú',val:r.val});
   });
   ALL_PIX.forEach(function(r){
     if(!r.data||!r.valor)return;
@@ -1812,14 +1819,18 @@ function applySaidas(){
   document.getElementById('tblSaidas').innerHTML=fSorted.map(function(r){
     var ov=OVERRIDES[r.chave]||{};
     var desc=ov.desc||r.desc; var cat=ov.cat||r.cat;
-    var canalBadge=r.canal==='Cartão'?'<span style="color:var(--blue);font-size:.75rem">💳</span>':'<span style="color:var(--green);font-size:.75rem">💸</span>';
+    var bancoLabel=r.canal==='Cartão'
+      ? (r.banco==='Nubank'?'💜 Nubank':'🧡 Itaú')
+      : '💸 PIX';
+    var canalColor=r.canal==='Cartão'?(r.banco==='Nubank'?'#820ad1':'#ec7000'):'var(--green)';
+    var canalBadge='<span style="color:'+canalColor+';font-size:.72rem;font-weight:600">'+bancoLabel+'</span>';
     var editBtn='<button onclick="abrirOverride(\''+r.chave+'\',\''+r.tipo+'\',\''+desc.replace(/'/g,"\\'")+'\',' +
       '\''+cat.replace(/'/g,"\\'")+'\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:var(--muted)" title="Editar">✏️</button>';
     return '<tr>'+
       '<td class="date-td">'+r.data+'</td>'+
       '<td class="desc-td" title="'+desc+'">'+desc.substring(0,38)+'</td>'+
       '<td style="font-size:.72rem;white-space:nowrap">'+cat+'</td>'+
-      '<td class="center">'+canalBadge+' '+r.canal+'</td>'+
+      '<td>'+canalBadge+'</td>'+
       '<td class="money">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
       '<td class="center">'+editBtn+'</td>'+
       '</tr>';

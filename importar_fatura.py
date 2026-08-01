@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# importar_fatura.py — lê XLSX das faturas Itaú e sobe diferencial no Supabase (tabela cartao)
+# importar_fatura.py — lê XLSX (Itaú) e OFX (Nubank) e sobe diferencial no Supabase (tabela cartao)
 
-import glob, json, time, requests, openpyxl
+import glob, json, re, time, requests, openpyxl
 from datetime import datetime
 from pathlib import Path
 
@@ -109,13 +109,59 @@ def ler_fatura(path):
 
     return header, lancamentos
 
+def ler_fatura_ofx(path):
+    """Lê OFX do cartão de crédito Nubank — retorna lista de dicts no mesmo formato do Itaú."""
+    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+        content = f.read()
+
+    lancamentos = []
+    for bloco in re.findall(r'<STMTTRN>(.*?)</STMTTRN>', content, re.DOTALL):
+        def get(tag):
+            m = re.search(rf'<{tag}>(.*?)(?:</{tag}>|[\r\n])', bloco, re.IGNORECASE)
+            return m.group(1).strip() if m else ''
+
+        tipo  = get('TRNTYPE')
+        dt    = get('DTPOSTED')[:8]
+        valor = get('TRNAMT')
+        memo  = get('MEMO')
+
+        # só débitos (compras) — ignora pagamentos
+        try:
+            v = float(valor)
+        except:
+            continue
+        if v >= 0:
+            continue
+        if 'pagamento' in memo.lower():
+            continue
+
+        try:
+            d = datetime.strptime(dt, '%Y%m%d')
+            data_fmt = d.strftime('%d/%m/%Y')
+        except:
+            continue
+
+        lancamentos.append({
+            'data': data_fmt,
+            'lancamento': memo,
+            'parcelamento': '',
+            'valor': abs(v),
+            'titularidade': 'Titular',
+            'tipo_cartao': 'Nubank'
+        })
+
+    return lancamentos
+
 def main():
-    arquivos = sorted(glob.glob(f'{PASTA_FATURAS}/fatura*.xlsx'))
+    arquivos_xlsx = sorted(glob.glob(f'{PASTA_FATURAS}/fatura*.xlsx'))
+    arquivos_ofx  = sorted(glob.glob(f'{PASTA_FATURAS}/Nubank*.ofx'))
+    arquivos = arquivos_xlsx + arquivos_ofx
+
     if not arquivos:
         print('Nenhum arquivo encontrado em', PASTA_FATURAS)
         return
 
-    print(f'{len(arquivos)} arquivo(s) encontrado(s)\n')
+    print(f'{len(arquivos_xlsx)} XLSX + {len(arquivos_ofx)} OFX encontrados\n')
 
     existentes = buscar_existentes()
 
@@ -125,7 +171,18 @@ def main():
         nome = path.split('/')[-1]
         print(f'Lendo {nome}...')
         try:
-            header, lancamentos = ler_fatura(path)
+            if path.endswith('.ofx'):
+                lancamentos_raw = ler_fatura_ofx(path)
+                novos = []
+                for l in lancamentos_raw:
+                    chave = f"{l['data']}|{l['lancamento']}|{l['valor']}"
+                    if chave not in existentes:
+                        novos.append(l)
+                        existentes.add(chave)
+                todos_novos.extend(novos)
+                print(f'  {len(lancamentos_raw)} lidos, {len(novos)} novos')
+            else:
+                header, lancamentos = ler_fatura(path)
             novos = []
             for ln in lancamentos:
                 chave = chave_lancamento(ln, header)
@@ -155,14 +212,17 @@ def main():
                'Valor':'valor','Titularidade':'titularidade','Tipo do cartão':'tipo_cartao'}
     rows_dict = []
     for ln in todos_novos:
-        if header_ref:
-            d = {col_map.get(header_ref[i], header_ref[i].lower()): ln[i] for i in range(len(ln))}
+        if isinstance(ln, dict):
+            d = ln
+        elif header_ref:
+            d = {col_map.get(header_ref[i], header_ref[i].lower()): ln[i] for i in range(min(len(ln),len(header_ref)))}
         else:
             d = {'data': ln[0], 'lancamento': ln[1], 'parcelamento': ln[2],
                  'valor': ln[3], 'titularidade': ln[4], 'tipo_cartao': ln[5]}
-        # converte valor para float
         try: d['valor'] = float(str(d.get('valor',0)).replace(',','.'))
         except: d['valor'] = 0
+        # remove chaves vazias
+        d = {k:v for k,v in d.items() if k}
         rows_dict.append(d)
 
     supa_upsert(rows_dict)
