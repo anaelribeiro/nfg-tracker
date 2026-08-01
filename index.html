@@ -90,7 +90,10 @@ body.light tr:hover td{background:#f8fafc}
 /* scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:#0f1420}::-webkit-scrollbar-thumb{background:#1e2d45;border-radius:3px}
 /* abas */
-.tabs{display:flex;gap:6px;margin:12px 0 14px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;margin:12px 0 6px;flex-wrap:wrap}
+@media(max-width:600px){.tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab-btn{white-space:nowrap;flex-shrink:0}}
 .tab-btn{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 16px;font-size:.78rem;cursor:pointer;transition:background .15s}
 .tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .tab-pane{display:none}
@@ -946,11 +949,12 @@ function mkBar(id,labels,data,color,horiz){
       scales:{x:{stacked:isArr,ticks:{color:'#94a3b8',maxRotation:30},grid:{color:'#1e2536'}},
               y:{stacked:isArr,ticks:{color:'#94a3b8',callback:function(v){return horiz?v:'R$'+Number(v).toLocaleString('pt-BR');}},grid:{color:'#1e2536'}}}}});
 }
+function legendPos(){return window.innerWidth<=600?'bottom':'right';}
 function mkDonut(id,labels,data){
   if(charts[id])charts[id].destroy();
   charts[id]=new Chart(document.getElementById(id),{type:'doughnut',
     data:{labels:labels,datasets:[{data:data,backgroundColor:COLORS}]},
-    options:{plugins:{legend:{position:'right',labels:{color:'#e2e8f0',font:{size:10},boxWidth:12}},
+    options:{plugins:{legend:{position:legendPos(),labels:{color:'#e2e8f0',font:{size:10},boxWidth:12}},
       tooltip:{callbacks:{label:function(c){return c.label+': R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2});}}}}}});
 }
 
