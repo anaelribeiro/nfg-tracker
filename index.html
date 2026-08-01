@@ -579,6 +579,13 @@ body.light tr:hover td{background:#f8fafc}
       </select>
     </div>
     <div class="fgrp" id="exMesGrp"><label>Mês</label><select id="exMes" onchange="atualizarExport()"><option value="">Todos</option></select></div>
+    <div class="fgrp"><label>Estabelecimentos NFG</label>
+      <select id="exEstab" onchange="atualizarExport()">
+        <option value="filtro">Usar filtro atual</option>
+        <option value="todos">Todos os estabelecimentos</option>
+        <option value="theodomiro">Só Macromix Theodomiro</option>
+      </select>
+    </div>
     <div class="fgrp"><label>Incluir dados</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
         <label style="font-size:.75rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="exNFG" checked onchange="atualizarExport()"> 🛒 NFG (produtos)</label>
@@ -2248,7 +2255,13 @@ function atualizarExport(){
   var incCart=document.getElementById('exCartao').checked;
   var incPIX=document.getElementById('exPIX').checked;
   var incEnt=document.getElementById('exEntradas').checked;
-  var nfgF=incNFG?ALL_ITENS.filter(function(r){return mF.has(r.mes)&&(excludedFiliais.size===0||!excludedFiliais.has(r.filial));}):[];
+  var nfgF=incNFG?ALL_ITENS.filter(function(r){
+    if(!mF.has(r.mes)) return false;
+    var estab=document.getElementById('exEstab').value;
+    if(estab==='todos') return true;
+    if(estab==='theodomiro') return r.filial&&r.filial.indexOf('THEODOMIRO')>=0;
+    return excludedFiliais.size===0||!excludedFiliais.has(r.filial);
+  }):[];
   var cartF=incCart?ALL_CARTAO.filter(function(r){return mF.has(r.mes);}):[];
   var pixF=incPIX?ALL_PIX.filter(function(r){return mF.has(getMesDe(r.data));}):[];
   var entF=incEnt?ALL_ENTRADAS.filter(function(r){return mF.has(getMesDe(r.data));}):[];
@@ -2280,7 +2293,13 @@ function getExportData(){
   var incEnt=document.getElementById('exEntradas').checked;
   var data={periodo:Array.from(mF).sort(),gerado_em:new Date().toISOString()};
   if(incNFG){
-    var nfgF=ALL_ITENS.filter(function(r){return mF.has(r.mes)&&(excludedFiliais.size===0||!excludedFiliais.has(r.filial));});
+    var nfgF=ALL_ITENS.filter(function(r){
+      if(!mF.has(r.mes)) return false;
+      var estab=document.getElementById('exEstab').value;
+      if(estab==='todos') return true;
+      if(estab==='theodomiro') return r.filial&&r.filial.indexOf('THEODOMIRO')>=0;
+      return excludedFiliais.size===0||!excludedFiliais.has(r.filial);
+    });
     data.nfg_itens=nfgF.map(function(r){return{data:r.emissao,loja:r.loja,descricao:r.desc,categoria:r.cat,qualidade:r.nutri==='ultra'?'Ultraprocessado':r.nutri==='saud'?'Saudável':'Neutro',quantidade:r.qtd,unidade:r.un,valor_unit:r.val_unit,valor_total:r.val};});
     var byCat={};nfgF.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
     data.nfg_resumo={total:nfgF.reduce(function(s,r){return s+r.val;},0),por_categoria:byCat,nutricional:{saudavel:nfgF.filter(function(r){return r.nutri==='saud';}).reduce(function(s,r){return s+r.val;},0),ultraprocessado:nfgF.filter(function(r){return r.nutri==='ultra';}).reduce(function(s,r){return s+r.val;},0),neutro:nfgF.filter(function(r){return r.nutri==='neutro';}).reduce(function(s,r){return s+r.val;},0)}};
@@ -2330,7 +2349,7 @@ function copiarPrompt(){
 }
 
 function showTab(id,btn){
-  var financeiras=['fatura','pix','saidas','entradas'];
+  var financeiras=['fatura','pix','saidas','entradas','exportar'];
   var isFinanceira=financeiras.indexOf(id)>=0;
   document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
