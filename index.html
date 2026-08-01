@@ -221,6 +221,7 @@ body.light tr:hover td{background:#f8fafc}
   <button class="tab-btn" onclick="showTab('fatura',this)">💳 Fatura</button>
   <button class="tab-btn" onclick="showTab('pix',this)">💸 PIX</button>
   <button class="tab-btn" onclick="showTab('saidas',this)">💰 Saídas</button>
+  <button class="tab-btn" onclick="showTab('entradas',this)">💵 Entradas</button>
 </div>
 
 <!-- tab: resumo -->
@@ -484,6 +485,58 @@ body.light tr:hover td{background:#f8fafc}
 </div>
 </div>
 
+<!-- tab: entradas -->
+<div class="tab-pane" id="tab-entradas">
+<div class="section-title">Entradas — Salário e PIX Recebidos</div>
+<div class="cards">
+  <div class="card"><div class="lbl">Total entradas</div><div class="val" style="color:var(--green)" id="ekTotal">—</div><div class="sub" id="ekSub">—</div></div>
+  <div class="card"><div class="lbl">Salário</div><div class="val" style="color:var(--blue)" id="ekSalario">—</div><div class="sub" id="ekSalarioPct">—</div></div>
+  <div class="card"><div class="lbl">PIX recebido</div><div class="val" style="color:var(--purple)" id="ekPix">—</div><div class="sub" id="ekPixPct">—</div></div>
+  <div class="card"><div class="lbl">Saldo (entradas - saídas)</div><div class="val" id="ekSaldo">—</div><div class="sub" id="ekSaldoSub">—</div></div>
+</div>
+<div class="filters" style="margin-bottom:14px">
+  <div class="filters-row">
+    <div class="fgrp"><label>Mês</label><select id="eMes" onchange="applyEntradas()"><option value="">Todos</option></select></div>
+    <div class="fgrp"><label>Tipo</label>
+      <select id="eTipo" onchange="applyEntradas()">
+        <option value="">Todos</option>
+        <option value="Salário">💼 Salário</option>
+        <option value="PIX recebido">💸 PIX recebido</option>
+        <option value="Outros">📌 Outros</option>
+      </select>
+    </div>
+    <div class="fgrp"><label>Banco</label>
+      <select id="eBanco" onchange="applyEntradas()">
+        <option value="">Todos</option>
+        <option value="Itaú">🧡 Itaú</option>
+        <option value="Nubank">💜 Nubank</option>
+      </select>
+    </div>
+    <button class="btn" onclick="document.getElementById('eMes').value='';document.getElementById('eTipo').value='';document.getElementById('eBanco').value='';applyEntradas()">✕ Limpar</button>
+    <div class="fstat"><span id="eCount">—</span> entradas · R$ <span id="eTotal" style="color:var(--green);font-weight:600">—</span></div>
+  </div>
+</div>
+<div class="grid2" style="margin-bottom:14px">
+  <div class="box"><h2>Entradas por mês (R$)</h2><canvas id="cEntradasMes"></canvas></div>
+  <div class="box"><h2>Entradas vs Saídas por mês</h2><canvas id="cEntradasVsSaidas"></canvas></div>
+</div>
+<div class="box">
+  <h2>Transações <em id="lblEntradas" style="color:var(--text);font-style:normal;font-size:.7rem"></em></h2>
+  <div class="tbl-wrap" style="max-height:500px">
+    <table>
+      <thead><tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Tipo</th>
+        <th>Banco</th>
+        <th class="money">Valor R$</th>
+      </tr></thead>
+      <tbody id="tblEntradas"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
 </div><!-- /main -->
 
 <!-- chatbot -->
@@ -724,13 +777,15 @@ function _iniciarDashboard(msg){
     supaFetchAll('itens'),
     supaFetchAll('filiais'),
     supaFetchAll('cartao'),
-    supaFetchAll('pix')
+    supaFetchAll('pix'),
+    supaFetchAll('entradas')
   ])
   .then(function(results){
     buildFiliaisFromDB(results[1]);
     buildItensFromDB(results[0]);
     buildCartaoFromDB(results[2]);
     buildPixFromDB(results[3]);
+    buildEntradasFromDB(results[4]);
     msg.style.display='none';
     document.getElementById('loadBadge').textContent='✓ '+ALL_ITENS.length+' itens';
     document.getElementById('loadBadge').className='badge';
@@ -1837,6 +1892,111 @@ function applySaidas(){
   }).join('');
 }
 
+// ── Entradas ──────────────────────────────────────────────────────
+var ALL_ENTRADAS=[];
+
+function buildEntradasFromDB(rows){
+  ALL_ENTRADAS=rows;
+  var meses=new Set(rows.map(function(r){var p=(r.data||'').split('/');return p[2]+'-'+p[1];}));
+  var sel=document.getElementById('eMes');
+  if(sel){
+    var mArr=Array.from(meses).sort().reverse();
+    mArr.forEach(function(m){sel.add(new Option(m,m));});
+    if(sel.options.length>1)sel.value=sel.options[1].value;
+  }
+  applyEntradas();
+}
+
+function applyEntradas(){
+  var mes=document.getElementById('eMes').value;
+  var tipo=document.getElementById('eTipo').value;
+  var banco=document.getElementById('eBanco').value;
+
+  var f=ALL_ENTRADAS.filter(function(r){
+    var p=(r.data||'').split('/'); var rMes=p[2]+'-'+p[1];
+    return (!mes||rMes===mes)&&(!tipo||r.tipo===tipo)&&(!banco||r.banco===banco);
+  });
+
+  var total=f.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+  var totSalario=f.filter(function(r){return r.tipo==='Salário';}).reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+  var totPix=f.filter(function(r){return r.tipo==='PIX recebido';}).reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+
+  // calcula saídas do mesmo período para saldo
+  var totalSaidas=0;
+  ALL_CARTAO.forEach(function(r){
+    if(!r.data)return;
+    var p=r.data.split('/'); var rMes=p[2]+'-'+p[1];
+    if(!mes||rMes===mes)totalSaidas+=r.val;
+  });
+  ALL_PIX.forEach(function(r){
+    if(!r.data)return;
+    var p=(r.data||'').split('/'); var rMes=p[2]+'-'+p[1];
+    if(!mes||rMes===mes)totalSaidas+=(parseFloat(r.valor)||0);
+  });
+  var saldo=total-totalSaidas;
+
+  document.getElementById('ekTotal').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('ekSub').textContent=(mes||'todos os meses');
+  document.getElementById('ekSalario').textContent='R$ '+totSalario.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('ekSalarioPct').textContent=total>0?Math.round(totSalario/total*100)+'% do total':'—';
+  document.getElementById('ekPix').textContent='R$ '+totPix.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('ekPixPct').textContent=total>0?Math.round(totPix/total*100)+'% do total':'—';
+  document.getElementById('ekSaldo').textContent='R$ '+saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('ekSaldo').style.color=saldo>=0?'var(--green)':'var(--pink)';
+  document.getElementById('ekSaldoSub').textContent=saldo>=0?'Sobrou este mês':'Gastou mais do que ganhou';
+  document.getElementById('eCount').textContent=f.length;
+  document.getElementById('eTotal').textContent=total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('lblEntradas').textContent=f.length+' transações';
+
+  // gráfico entradas por mês stacked
+  var byMes={};
+  ALL_ENTRADAS.forEach(function(r){
+    var p=(r.data||'').split('/'); var m=p[2]+'-'+p[1];
+    if(!byMes[m])byMes[m]={salario:0,pix:0,outros:0};
+    if(r.tipo==='Salário')byMes[m].salario+=(parseFloat(r.valor)||0);
+    else if(r.tipo==='PIX recebido')byMes[m].pix+=(parseFloat(r.valor)||0);
+    else byMes[m].outros+=(parseFloat(r.valor)||0);
+  });
+  var mesKeys=Object.keys(byMes).sort();
+  mkBar('cEntradasMes',mesKeys,[
+    {label:'Salário',data:mesKeys.map(function(m){return +byMes[m].salario.toFixed(2);}),backgroundColor:'#38bdf8',borderRadius:3,stack:'s'},
+    {label:'PIX recebido',data:mesKeys.map(function(m){return +byMes[m].pix.toFixed(2);}),backgroundColor:'#a78bfa',borderRadius:3,stack:'s'},
+    {label:'Outros',data:mesKeys.map(function(m){return +byMes[m].outros.toFixed(2);}),backgroundColor:'#94a3b8',borderRadius:3,stack:'s'}
+  ]);
+
+  // gráfico entradas vs saídas
+  var saidaMes={};
+  ALL_CARTAO.forEach(function(r){
+    if(!r.data)return;
+    var p=r.data.split('/'); var m=p[2]+'-'+p[1];
+    saidaMes[m]=(saidaMes[m]||0)+r.val;
+  });
+  ALL_PIX.forEach(function(r){
+    if(!r.data)return;
+    var p=(r.data||'').split('/'); var m=p[2]+'-'+p[1];
+    saidaMes[m]=(saidaMes[m]||0)+(parseFloat(r.valor)||0);
+  });
+  var allMes=Array.from(new Set(Object.keys(byMes).concat(Object.keys(saidaMes)))).sort();
+  mkBar('cEntradasVsSaidas',allMes,[
+    {label:'Entradas',data:allMes.map(function(m){return +((byMes[m]?(byMes[m].salario+byMes[m].pix+byMes[m].outros):0)).toFixed(2);}),backgroundColor:'#34d399',borderRadius:3},
+    {label:'Saídas',data:allMes.map(function(m){return +((saidaMes[m]||0)).toFixed(2);}),backgroundColor:'#f472b6',borderRadius:3}
+  ]);
+
+  // tabela
+  var fSorted=f.slice().sort(function(a,b){return (b.data||'').split('/').reverse().join('').localeCompare((a.data||'').split('/').reverse().join(''));});
+  document.getElementById('tblEntradas').innerHTML=fSorted.map(function(r){
+    var bancoBadge=r.banco==='Nubank'?'<span style="color:#820ad1;font-size:.7rem">💜 Nubank</span>':'<span style="color:#ec7000;font-size:.7rem">🧡 Itaú</span>';
+    var tipoBadge=r.tipo==='Salário'?'💼':r.tipo==='PIX recebido'?'💸':'📌';
+    return '<tr>'+
+      '<td class="date-td">'+(r.data||'')+'</td>'+
+      '<td class="desc-td" title="'+(r.descricao||'')+'">'+(r.descricao||'').substring(0,40)+'</td>'+
+      '<td style="font-size:.72rem">'+tipoBadge+' '+r.tipo+'</td>'+
+      '<td>'+bancoBadge+'</td>'+
+      '<td class="money" style="color:var(--green)">R$ '+parseFloat(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'+
+      '</tr>';
+  }).join('');
+}
+
 // ── Abas ──────────────────────────────────────────────────────────
 function showTab(id,btn){
   document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
@@ -1892,6 +2052,7 @@ function initDashboard(){
   }
   applyPix();
   buildSaidas();
+  // entradas já inicializadas em buildEntradasFromDB
   document.getElementById('topbarInfo').textContent='Anael Dos Santos Ribeiro · '+new Date().toLocaleDateString('pt-BR');
   applyFilters();
 }
