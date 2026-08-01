@@ -853,6 +853,7 @@ function buildItens(rows){
 
 // ── Charts ────────────────────────────────────────────────────────
 Chart.defaults.color='#475569'; Chart.defaults.borderColor='#e2e8f0';
+Chart.defaults.font.family="'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji','Segoe UI',system-ui,sans-serif";
 var COLORS=['#38bdf8','#34d399','#a78bfa','#f472b6','#fb923c','#facc15','#4ade80','#60a5fa','#e879f9','#94a3b8','#f87171','#818cf8'];
 var charts={};
 function mkBar(id,labels,data,color,horiz){
@@ -1840,6 +1841,7 @@ function toggleTheme(){
   document.getElementById('themeBtn').textContent=light?'🌙 Escuro':'☀ Claro';
   Chart.defaults.color=light?'#475569':'#64748b';
   Chart.defaults.borderColor=light?'#e2e8f0':'#1e2d45';
+  Chart.defaults.font.family="'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji','Segoe UI',system-ui,sans-serif";
   applyFilters();
 }
 
