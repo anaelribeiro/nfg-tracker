@@ -667,28 +667,29 @@ body.light tr:hover td{background:#f8fafc}
 
 <script>
 // ── Declarações de classificação nutricional ──────────────────────
-var ULTRA_KW=['REFRI','ENERGETICO','MONSTER','BALA','BOMBOM','WAFER','SALGAD','BATATA PALHA',
-              'LINGUICA','LING SUINA','PRESUNTO','MORTADELA','BACON','SALAME','SALSICHA',
-              'NUGGET','EMPANADO','HOT DOG','MACARRAO INST','MIOJO'];
+var ULTRA_KW=['REFRI','GUARANA','PEPSI','ENERGETICO','MONSTER','BALA ','BALA MORANGO','BOMBOM','WAFER','SALGAD','BATATA PALHA','BATATA RUFFLES','SALG CHEETOS','SALG ELMA','PIPOCA',
+              'LINGUICA','LING SUINA','LING CALAB','PRESUNTO','MORTADELA','BACON','SALAME','SALSICHA',
+              'NUGGET','EMPANADO','HOT DOG','MACARRAO INST','MIOJO','CHICLET','CHICLE ','DROPS ','MARSHMALLOW','SORVETE'];
 var SAUD_KW=['FRALDINHA','PATINHO','ALCATRA','BIFE','FILE ','COXA','FRANGO','SUINO',
              'FILEZINHO','PICANHA','COSTELA','PEITO BOV','SASSAMI','SOBRECOXA',
              'LEITE','REQUEIJAO','QUEIJ','QUEI ','IOGURTE','IOG ','MUSSARELA',
-             'RICOTA','OVO ','OVOS','TOMATE','CENOURA','PEPINO','BROCOLIS',
+             'RICOTA','OVO BRANCO','OVO BCO','OVOS BCO','OVOS C/','TOMATE','CENOURA','PEPINO','BROCOLIS',
              'ALFACE','RUCULA','LARANJA','BANANA','MANGA','MORANGO','UVA',
              'HORTALICA','VERDUR','FRUTA','ARROZ','FEIJAO','AVEIA',
              'PAO FRANCES','PAO QUEI','BATATA BCA','BATATA COR'];
 var CATEGORIAS=[
-  ['🥩 Carnes',['carne','fraldinha','patinho','alcatra','bife','file','coxa','scx','fgo','frango','suino','ling suina','filezinho','picanha','costela','bov','vac','linguica','salame','copa','bacon','mortadela','presunto','peito','sassami','sobrecoxa','espeto']],
-  ['🥛 Laticínios',['leite','requeijao','queij','quei','iogurte','iog','creme de leite','cr leite','nata','manteig','mussarela','muss','parmesao','ricota','danette','chandelle']],
-  ['🥤 Bebidas',['refri','agua min','suco','nect','beb lac','cerveja','chopp','vinho','energetico','beb energ','monster','agua coco','leite cond']],
-  ['🍞 Padaria',['pao','rosca','cuca','torta','bolo','bolinho','biscoito','wafer','cookie','crackers','broa']],
-  ['🥦 Hortifruti',['tomate','batata','cebola','alho','cenoura','pepino','laranja','bergamota','limao','abacaxi','beterraba','repolho','couve','brocolis','alface','rucula','morango','uva','maca','pera','manga','mamao','melao','melancia','banana','hortalica','verdur','fruta','piment','berinjela','abobrinha','pinhao','semente']],
-  ['🍫 Doces&Snacks',['choc','achoc','bala','bombom','chiclete','doce','geleia','salg','batata palha','salgad','amendoim','castanha','granola']],
-  ['🍝 Mercearia',['arroz','feijao','massa','macarrao','espaguete','farinha','polvilho','fuba','aveia','azeite','oleo','vinagre','molho','catchup','maion','mostarda','tempero','acucar','cafe','extrato','caldo','ervilha','milho','lentilha','grao']],
-  ['🧴 Higiene',['sabao','deterg','desinfet','limpa','limpol','pap hig','absorv','desodor','creme dent','cr dent','shampoo','condic','sabonete','sabt','escova','esc den','alcool','lav louca','amaciante','esponja','saco lixo']],
+  ['🔧 Casa',['luva tricotada','folha lixa','lixa mademassa','lixa mad','lixa massa','oleo lubrax','fita vedar','vedarosca','balao confesta','lamp','plaf','disco','broca','paraf','ferro solda','solda','cabo','tomada','conec','nipel','rotetor','braco chuv','engate','valv','sifao','refletor','elet corru']],
+  ['🏗️ Outros',['pizza','risole','shoarma de frango','coc1 caixa','produto promoh']],
+  ['🥩 Carnes',['ovo branco','ovo bco','ovos bco','ovos c/','ovo deimling','ovo kohl','carne','fraldinha','patinho','alcatra','bife','file ','coxa ','scx ','fgo ','frango','suino','ling calab','ling suina','linguica','filezinho','picanha','costela','bov ','vac ','salame','copa ','bacon','mortadela','presunto','peito ','sassami','sobrecoxa','espeto']],
+  ['🧴 Higiene',['sabt palmolive','sabt francis','sabt johnsons','sabt liq','sabonete','sabt ','agua sanit','desinf pinho','amac conc','amaciante','lav roup','lav louca','sabao','deterg','desinfet','limpa','limpol','pap hig','absorv','desodor','creme dent','cr dent','shampoo','condic','escova','esc den','alcool','esponja','saco lixo']],
+  ['🥦 Hortifruti',['laranja suco','caqui ','tempero verde ceb','cebolinha kg','cebolinha un','cebolinha','tomate','batata bca','batata cor','cebola','alho ','cenoura','pepino','laranja','bergamota','limao','abacaxi','beterraba','repolho','couve ','brocolis','alface','rucula','morango kg','morango bnd','uva ','maca ','pera ','manga ','mamao','melao','melancia','banana','hortalica','verdur','fruta','pimentao','berinjela','abobrinha','pinhao','semente']],
+  ['🍫 Doces&Snacks',['sobr chandelle','sobr danette','sobr ','leite cond italac','leite cond moca','leite cond tirol','leite cond triang','leite condensado','l.cond','batata palha','batata ruffles','bisc club social','bisc mosmann','bisc rech','bisc crocantiss','bisc tucs','bisc zin','salg cheetos','salg elma','salg semalo','wafer baud','wafer hershey','wafer isabela','wafer trento','wafer rech','biscoito maria','bolinho ana maria','pipoca','bala morango','morango fini','morango halls','bala halls','bala ','bombom','chiclete','chicle ','chiclet','drops ','mentos ','marshmallow','alfajor','sorvete','choc ','achoc','doce ','geleia','amendoim','castanha','granola']],
+  ['🍝 Mercearia',['temp chimichurri','temp sabor','macar ','macarr','massa isabel','fettuccine','farin trigo','farinha','polvilho','fuba ','aveia','azeite','oleo ','vinagre','molho','catchup','maion','mostarda','tempero','acucar cristal','acucar demerara','acucar ref','acucar ','cafe ','extrato','caldo ','ervilha','milho','lentilha','grao ','farofa','erva mate','fermento bio','arroz','feijao','espaguete']],
+  ['🥛 Laticínios',['mist lactea','cremor ','danette','chandelle','requeijao','queijao','iogurte','iog ','creme de leite','cr leite','nata ','manteig','mussarela','muss ','parmesao','ricota']],
+  ['🥤 Bebidas',['guarana antarctica','guarana kuat','guarana','pepsi','refri','agua min','agua da lomba','nect ','beb lac','cerveja','chopp','vinho','energetico','beb energ','monster','agua coco','suco ']],
+  ['🍞 Padaria',['pao quei','pao queijo','mini pao quei','rosquinha polv','cueca virada','pao franc','rosca','cuca ','bolo ','bolinho']],
   ['💊 Saúde',['farma','medic','remedio','vitamina','suplemento','diclof','resfben','sundown','pomada','prot sun']],
   ['👗 Vestuário',['camiseta','calca','vestido','blusa','shorts','tenis','sapato','sandalia','meia','cueca','polo','bermuda','moletom','manga curta']],
-  ['🔧 Casa',['lamp','plaf','disco','broca','paraf','ferro solda','solda','cabo','tomada','fita','conec','nipel','prat ','can ','rotetor','braco chuv','engate','valv','sifao','vedarosca','lixa','refletor','elet corru']],
   ['🏗️ Outros',[]]
 ];
 
