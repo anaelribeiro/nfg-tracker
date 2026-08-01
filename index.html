@@ -158,8 +158,22 @@ body.light tr:hover td{background:#f8fafc}
 
 <div class="main">
 
+<!-- abas -->
+<div class="tabs" style="margin-bottom:4px">
+  <button class="tab-btn active" onclick="showTab('resumo',this)">Resumo</button>
+  <button class="tab-btn" onclick="showTab('gastos',this)">Gastos</button>
+  <button class="tab-btn" onclick="showTab('padroes',this)">Padrões</button>
+  <button class="tab-btn" onclick="showTab('produtos',this)">Produtos</button>
+  <button class="tab-btn" onclick="showTab('analises',this)">Análises</button>
+  <span style="width:1px;background:var(--border);margin:0 6px;align-self:stretch;display:inline-block"></span>
+  <button class="tab-btn" onclick="showTab('fatura',this)">💳 Fatura</button>
+  <button class="tab-btn" onclick="showTab('pix',this)">💸 PIX</button>
+  <button class="tab-btn" onclick="showTab('saidas',this)">💰 Saídas</button>
+  <button class="tab-btn" onclick="showTab('entradas',this)">💵 Entradas</button>
+</div>
+
 <!-- KPI cards -->
-<div class="cards">
+<div id="nfgKpis" class="cards">
   <div class="card"><div class="lbl">Total gasto</div><div class="val" style="color:var(--blue)" id="kTotal">—</div><div class="sub" id="kSub">carregando...</div></div>
   <div class="card"><div class="lbl">Notas</div><div class="val" style="color:var(--green)" id="kNotas">—</div><div class="pbar"><div class="pfill" id="kPfill" style="width:0%"></div></div></div>
   <div class="card"><div class="lbl">Produtos únicos</div><div class="val" style="color:var(--purple)" id="kProds">—</div><div class="sub" id="kRedes">—</div></div>
@@ -168,7 +182,7 @@ body.light tr:hover td{background:#f8fafc}
 </div>
 
 <!-- filtros -->
-<div class="filters">
+<div id="nfgFiltros" class="filters">
   <div class="filters-row">
     <div class="fgrp"><label>Tipo de loja</label>
       <select id="fTipoLoja" onchange="applyFilters()">
@@ -220,21 +234,6 @@ body.light tr:hover td{background:#f8fafc}
       <div id="filialTags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px"></div>
     </div>
   </div>
-</div>
-
-<!-- abas -->
-<div class="tabs">
-  <button class="tab-btn active" onclick="showTab('resumo',this)">Resumo</button>
-  <button class="tab-btn" onclick="showTab('gastos',this)">Gastos</button>
-  <button class="tab-btn" onclick="showTab('padroes',this)">Padrões</button>
-  <button class="tab-btn" onclick="showTab('produtos',this)">Produtos</button>
-  <button class="tab-btn" onclick="showTab('analises',this)">Análises</button>
-</div>
-<div class="tabs" style="margin-top:-8px">
-  <button class="tab-btn" onclick="showTab('fatura',this)">💳 Fatura</button>
-  <button class="tab-btn" onclick="showTab('pix',this)">💸 PIX</button>
-  <button class="tab-btn" onclick="showTab('saidas',this)">💰 Saídas</button>
-  <button class="tab-btn" onclick="showTab('entradas',this)">💵 Entradas</button>
 </div>
 
 <!-- tab: resumo -->
@@ -2155,10 +2154,17 @@ function exportarRelatorioPDF(){
   window.print();
 }
 function showTab(id,btn){
+  var financeiras=['fatura','pix','saidas','entradas'];
+  var isFinanceira=financeiras.indexOf(id)>=0;
   document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  // esconde/mostra KPIs e filtros NFG
+  var nfgKpis=document.getElementById('nfgKpis');
+  var nfgFiltros=document.getElementById('nfgFiltros');
+  if(nfgKpis)nfgKpis.style.display=isFinanceira?'none':'';
+  if(nfgFiltros)nfgFiltros.style.display=isFinanceira?'none':'';
 }
 
 // ── Tema ──────────────────────────────────────────────────────────
