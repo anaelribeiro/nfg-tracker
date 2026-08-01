@@ -60,7 +60,7 @@ def parse_data(dt_str):
 
 def classifica_tipo(memo):
     m = memo.lower()
-    if any(x in m for x in ['salario','remuneracao','folha']): return 'Salário'
+    if any(x in m for x in ['salario','remuneracao','folha','wise']): return 'Salário'
     if any(x in m for x in ['transferência recebida','transferencia recebida','pix recebido']): return 'PIX recebido'
     if 'devolucao' in m or 'estorno' in m: return 'Devolução'
     return 'Outros'
