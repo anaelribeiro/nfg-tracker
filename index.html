@@ -2248,7 +2248,7 @@ function atualizarExport(){
   var incCart=document.getElementById('exCartao').checked;
   var incPIX=document.getElementById('exPIX').checked;
   var incEnt=document.getElementById('exEntradas').checked;
-  var nfgF=incNFG?ALL_ITENS.filter(function(r){return mF.has(r.mes);}):[];
+  var nfgF=incNFG?ALL_ITENS.filter(function(r){return mF.has(r.mes)&&(excludedFiliais.size===0||!excludedFiliais.has(r.filial));}):[];
   var cartF=incCart?ALL_CARTAO.filter(function(r){return mF.has(r.mes);}):[];
   var pixF=incPIX?ALL_PIX.filter(function(r){return mF.has(getMesDe(r.data));}):[];
   var entF=incEnt?ALL_ENTRADAS.filter(function(r){return mF.has(getMesDe(r.data));}):[];
@@ -2280,7 +2280,7 @@ function getExportData(){
   var incEnt=document.getElementById('exEntradas').checked;
   var data={periodo:Array.from(mF).sort(),gerado_em:new Date().toISOString()};
   if(incNFG){
-    var nfgF=ALL_ITENS.filter(function(r){return mF.has(r.mes);});
+    var nfgF=ALL_ITENS.filter(function(r){return mF.has(r.mes)&&(excludedFiliais.size===0||!excludedFiliais.has(r.filial));});
     data.nfg_itens=nfgF.map(function(r){return{data:r.emissao,loja:r.loja,descricao:r.desc,categoria:r.cat,qualidade:r.nutri==='ultra'?'Ultraprocessado':r.nutri==='saud'?'Saudável':'Neutro',quantidade:r.qtd,unidade:r.un,valor_unit:r.val_unit,valor_total:r.val};});
     var byCat={};nfgF.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
     data.nfg_resumo={total:nfgF.reduce(function(s,r){return s+r.val;},0),por_categoria:byCat,nutricional:{saudavel:nfgF.filter(function(r){return r.nutri==='saud';}).reduce(function(s,r){return s+r.val;},0),ultraprocessado:nfgF.filter(function(r){return r.nutri==='ultra';}).reduce(function(s,r){return s+r.val;},0),neutro:nfgF.filter(function(r){return r.nutri==='neutro';}).reduce(function(s,r){return s+r.val;},0)}};
