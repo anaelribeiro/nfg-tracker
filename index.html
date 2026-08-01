@@ -174,6 +174,7 @@ body.light tr:hover td{background:#f8fafc}
   <button class="tab-btn" onclick="showTab('pix',this)">💸 PIX</button>
   <button class="tab-btn" onclick="showTab('saidas',this)">💰 Saídas</button>
   <button class="tab-btn" onclick="showTab('entradas',this)">💵 Entradas</button>
+  <button class="tab-btn" onclick="showTab('exportar',this)">🤖 Exportar IA</button>
 </div>
 
 <!-- KPI cards -->
@@ -560,6 +561,51 @@ body.light tr:hover td{background:#f8fafc}
       <tbody id="tblEntradas"></tbody>
     </table>
   </div>
+</div>
+</div>
+
+<!-- tab: exportar -->
+<div class="tab-pane" id="tab-exportar">
+<div class="section-title">Exportar dados para análise com IA</div>
+
+<div class="filters" style="margin-bottom:14px">
+  <div class="filters-row">
+    <div class="fgrp"><label>Período</label>
+      <select id="exPeriodo" onchange="atualizarExport()">
+        <option value="mes">Mês específico</option>
+        <option value="trimestre">Trimestre</option>
+        <option value="semestre">Semestre</option>
+        <option value="ano">Ano completo</option>
+      </select>
+    </div>
+    <div class="fgrp" id="exMesGrp"><label>Mês</label><select id="exMes" onchange="atualizarExport()"><option value="">Todos</option></select></div>
+    <div class="fgrp"><label>Incluir dados</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+        <label style="font-size:.75rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="exNFG" checked onchange="atualizarExport()"> 🛒 NFG (produtos)</label>
+        <label style="font-size:.75rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="exCartao" checked onchange="atualizarExport()"> 💳 Cartão</label>
+        <label style="font-size:.75rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="exPIX" checked onchange="atualizarExport()"> 💸 PIX</label>
+        <label style="font-size:.75rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="exEntradas" checked onchange="atualizarExport()"> 💵 Entradas</label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- resumo do que será exportado -->
+<div class="box" style="margin-bottom:14px">
+  <h2>Resumo da exportação</h2>
+  <div id="exResumo" style="font-size:.78rem;color:var(--muted);line-height:2">calculando...</div>
+</div>
+
+<!-- prompt sugerido -->
+<div class="box" style="margin-bottom:14px">
+  <h2>Prompt sugerido <button onclick="copiarPrompt()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 8px;font-size:.65rem;cursor:pointer;margin-left:8px">📋 Copiar</button></h2>
+  <div id="exPrompt" style="font-size:.75rem;color:var(--text);line-height:1.6;background:var(--bg);border-radius:8px;padding:12px;white-space:pre-wrap"></div>
+</div>
+
+<!-- botões de exportar -->
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+  <button onclick="exportarJSON()" style="flex:1;background:#1e1e4e;color:#818cf8;border:1px solid #818cf8;border-radius:8px;padding:10px 16px;font-size:.82rem;font-weight:600;cursor:pointer">📄 Exportar JSON (para IA)</button>
+  <button onclick="exportarTextoIA()" style="flex:1;background:#164e1e;color:#34d399;border:1px solid #34d399;border-radius:8px;padding:10px 16px;font-size:.82rem;font-weight:600;cursor:pointer">📋 Copiar texto para IA</button>
 </div>
 </div>
 
@@ -2158,6 +2204,130 @@ function exportarRelatorioPDF(){
   var mes = document.getElementById('eMes').value || 'completo';
   window.print();
 }
+// ── Exportar para IA ──────────────────────────────────────────────
+function initExportar(){
+  var meses=new Set();
+  ALL_ITENS.forEach(function(r){if(r.mes&&r.mes!=='?')meses.add(r.mes);});
+  ALL_CARTAO.forEach(function(r){if(r.mes)meses.add(r.mes);});
+  var sel=document.getElementById('exMes');
+  if(sel.options.length<=1)
+    Array.from(meses).sort().reverse().forEach(function(m){sel.add(new Option(m,m));});
+  if(sel.options.length>1&&!sel.value)sel.value=sel.options[1].value;
+  atualizarExport();
+}
+
+function getMesDe(data){
+  if(!data)return'?';
+  var p=data.split('/');
+  return p[2]&&p[1]?(p[2]+'-'+('0'+parseInt(p[1])).slice(-2)):'?';
+}
+
+function getFiltroEx(){
+  var periodo=document.getElementById('exPeriodo').value;
+  var mes=document.getElementById('exMes').value;
+  var allMeses=[];
+  ALL_ITENS.forEach(function(r){if(r.mes&&r.mes!=='?')allMeses.push(r.mes);});
+  ALL_CARTAO.forEach(function(r){if(r.mes)allMeses.push(r.mes);});
+  ALL_PIX.forEach(function(r){var m=getMesDe(r.data);if(m!=='?')allMeses.push(m);});
+  ALL_ENTRADAS.forEach(function(r){var m=getMesDe(r.data);if(m!=='?')allMeses.push(m);});
+  var mesesDisp=Array.from(new Set(allMeses)).sort().reverse();
+  var mesesFiltro=[];
+  if(periodo==='mes'){mesesFiltro=mes?[mes]:[mesesDisp[0]];}
+  else if(periodo==='trimestre'){mesesFiltro=mesesDisp.slice(0,3);}
+  else if(periodo==='semestre'){mesesFiltro=mesesDisp.slice(0,6);}
+  else{mesesFiltro=mesesDisp;}
+  return new Set(mesesFiltro);
+}
+
+function atualizarExport(){
+  var periodo=document.getElementById('exPeriodo').value;
+  document.getElementById('exMesGrp').style.display=periodo==='mes'?'':'none';
+  var mF=getFiltroEx();
+  var incNFG=document.getElementById('exNFG').checked;
+  var incCart=document.getElementById('exCartao').checked;
+  var incPIX=document.getElementById('exPIX').checked;
+  var incEnt=document.getElementById('exEntradas').checked;
+  var nfgF=incNFG?ALL_ITENS.filter(function(r){return mF.has(r.mes);}):[];
+  var cartF=incCart?ALL_CARTAO.filter(function(r){return mF.has(r.mes);}):[];
+  var pixF=incPIX?ALL_PIX.filter(function(r){return mF.has(getMesDe(r.data));}):[];
+  var entF=incEnt?ALL_ENTRADAS.filter(function(r){return mF.has(getMesDe(r.data));}):[];
+  var totNFG=nfgF.reduce(function(s,r){return s+r.val;},0);
+  var totCart=cartF.reduce(function(s,r){return s+r.val;},0);
+  var totPix=pixF.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+  var totEnt=entF.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+  document.getElementById('exResumo').innerHTML=
+    (incNFG?'🛒 <strong>'+nfgF.length+'</strong> itens NFG · R$ '+totNFG.toLocaleString('pt-BR',{minimumFractionDigits:2})+'<br>':'')+
+    (incCart?'💳 <strong>'+cartF.length+'</strong> lançamentos cartão · R$ '+totCart.toLocaleString('pt-BR',{minimumFractionDigits:2})+'<br>':'')+
+    (incPIX?'💸 <strong>'+pixF.length+'</strong> PIX enviados · R$ '+totPix.toLocaleString('pt-BR',{minimumFractionDigits:2})+'<br>':'')+
+    (incEnt?'💵 <strong>'+entF.length+'</strong> entradas · R$ '+totEnt.toLocaleString('pt-BR',{minimumFractionDigits:2})+'<br>':'')+
+    '<br>📦 Total: <strong>'+(nfgF.length+cartF.length+pixF.length+entF.length)+'</strong> registros · período: '+Array.from(mF).sort().join(', ');
+  var periodoLabel=periodo==='mes'?Array.from(mF)[0]||'selecionado':periodo;
+  document.getElementById('exPrompt').textContent=
+'Analise os dados financeiros pessoais a seguir e me dê recomendações práticas.\n\nPeríodo: '+periodoLabel+'\n\n'+
+(incNFG?'## Compras de supermercado (NFG)\nTenho '+nfgF.length+' itens comprados. Analise:\n- Categorias com maior gasto\n- Qualidade nutricional (saudável vs ultraprocessado)\n- Produtos que compro com frequência que posso reduzir\n\n':'')+
+(incCart?'## Fatura do cartão de crédito\nTenho '+cartF.length+' lançamentos. Analise:\n- Categorias de maior gasto\n- Gastos que não estão no supermercado\n- Sugestões de redução\n\n':'')+
+(incPIX?'## PIX enviados\nTenho '+pixF.length+' transações. Analise:\n- Para onde vai o dinheiro por categoria\n- PIX recorrentes que poderiam ser planejados melhor\n\n':'')+
+(incEnt?'## Saúde financeira\nEntradas: R$ '+totEnt.toLocaleString('pt-BR',{minimumFractionDigits:2})+' | Saídas: R$ '+(totCart+totPix).toLocaleString('pt-BR',{minimumFractionDigits:2})+'\nAnalise:\n- Taxa de poupança e se é adequada\n- Tendências preocupantes\n- Como melhorar o saldo\n\n':'')+
+'Seja específico, use os dados reais fornecidos e dê sugestões práticas com valores estimados de economia.';
+}
+
+function getExportData(){
+  var mF=getFiltroEx();
+  var incNFG=document.getElementById('exNFG').checked;
+  var incCart=document.getElementById('exCartao').checked;
+  var incPIX=document.getElementById('exPIX').checked;
+  var incEnt=document.getElementById('exEntradas').checked;
+  var data={periodo:Array.from(mF).sort(),gerado_em:new Date().toISOString()};
+  if(incNFG){
+    var nfgF=ALL_ITENS.filter(function(r){return mF.has(r.mes);});
+    data.nfg_itens=nfgF.map(function(r){return{data:r.emissao,loja:r.loja,descricao:r.desc,categoria:r.cat,qualidade:r.nutri==='ultra'?'Ultraprocessado':r.nutri==='saud'?'Saudável':'Neutro',quantidade:r.qtd,unidade:r.un,valor_unit:r.val_unit,valor_total:r.val};});
+    var byCat={};nfgF.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
+    data.nfg_resumo={total:nfgF.reduce(function(s,r){return s+r.val;},0),por_categoria:byCat,nutricional:{saudavel:nfgF.filter(function(r){return r.nutri==='saud';}).reduce(function(s,r){return s+r.val;},0),ultraprocessado:nfgF.filter(function(r){return r.nutri==='ultra';}).reduce(function(s,r){return s+r.val;},0),neutro:nfgF.filter(function(r){return r.nutri==='neutro';}).reduce(function(s,r){return s+r.val;},0)}};
+  }
+  if(incCart){
+    var cartF=ALL_CARTAO.filter(function(r){return mF.has(r.mes);});
+    data.cartao=cartF.map(function(r){return{data:r.data,descricao:r.desc,categoria:r.cat,banco:r.banco,parcelamento:r.parcela,valor:r.val};});
+    var byCatC={};cartF.forEach(function(r){byCatC[r.cat]=(byCatC[r.cat]||0)+r.val;});
+    data.cartao_resumo={total:cartF.reduce(function(s,r){return s+r.val;},0),por_categoria:byCatC};
+  }
+  if(incPIX){
+    var pixF=ALL_PIX.filter(function(r){return mF.has(getMesDe(r.data));});
+    data.pix=pixF.map(function(r){return{data:r.data,destinatario:r.destinatario,categoria:r.cat,banco_origem:r.banco,banco_destino:r.banco_dest,valor:parseFloat(r.valor)||0};});
+    var byCatP={};pixF.forEach(function(r){byCatP[r.cat]=(byCatP[r.cat]||0)+(parseFloat(r.valor)||0);});
+    data.pix_resumo={total:pixF.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0),por_categoria:byCatP};
+  }
+  if(incEnt){
+    var entF=ALL_ENTRADAS.filter(function(r){return mF.has(getMesDe(r.data));});
+    data.entradas=entF.map(function(r){return{data:r.data,tipo:r.tipo,banco:r.banco,descricao:r.descricao,valor:parseFloat(r.valor)||0};});
+    var totEnt=entF.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+    var totSaid=(data.cartao_resumo?data.cartao_resumo.total:0)+(data.pix_resumo?data.pix_resumo.total:0);
+    data.saude_financeira={total_entradas:totEnt,total_saidas:totSaid,saldo:totEnt-totSaid,taxa_poupanca:totEnt>0?Math.round((totEnt-totSaid)/totEnt*100):0};
+  }
+  return data;
+}
+
+function exportarJSON(){
+  var data=getExportData();
+  var mes=Array.from(getFiltroEx()).sort().join('_')||'completo';
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='NFG_dados_'+mes+'.json';a.click();
+}
+
+function exportarTextoIA(){
+  var data=getExportData();
+  var prompt=document.getElementById('exPrompt').textContent;
+  var texto=prompt+'\n\n---\n\nDADOS:\n'+JSON.stringify(data,null,2);
+  navigator.clipboard.writeText(texto).then(function(){alert('Copiado! Cole no ChatGPT ou Claude.');})
+    .catch(function(){var ta=document.createElement('textarea');ta.value=texto;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Copiado! Cole no ChatGPT ou Claude.');});
+}
+
+function copiarPrompt(){
+  var texto=document.getElementById('exPrompt').textContent;
+  navigator.clipboard.writeText(texto).then(function(){alert('Prompt copiado!');})
+    .catch(function(){var ta=document.createElement('textarea');ta.value=texto;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Prompt copiado!');});
+}
+
 function showTab(id,btn){
   var financeiras=['fatura','pix','saidas','entradas'];
   var isFinanceira=financeiras.indexOf(id)>=0;
@@ -2170,6 +2340,7 @@ function showTab(id,btn){
   var nfgFiltros=document.getElementById('nfgFiltros');
   if(nfgKpis)nfgKpis.style.display=isFinanceira?'none':'';
   if(nfgFiltros)nfgFiltros.style.display=isFinanceira?'none':'';
+  if(id==='exportar')initExportar();
 }
 
 // ── Tema ──────────────────────────────────────────────────────────
