@@ -494,6 +494,14 @@ body.light tr:hover td{background:#f8fafc}
   <div class="card"><div class="lbl">PIX recebido</div><div class="val" style="color:var(--purple)" id="ekPix">—</div><div class="sub" id="ekPixPct">—</div></div>
   <div class="card"><div class="lbl">Saldo (entradas - saídas)</div><div class="val" id="ekSaldo">—</div><div class="sub" id="ekSaldoSub">—</div></div>
 </div>
+<!-- saúde financeira -->
+<div class="cards" style="margin-bottom:14px">
+  <div class="card"><div class="lbl">Taxa de poupança</div><div class="val" id="ekPoupanca">—</div><div class="sub" id="ekPoupancaSub">—</div><div class="pbar"><div class="pfill" id="ekPoupancaBar" style="width:0%"></div></div></div>
+  <div class="card"><div class="lbl">Tendência de gastos</div><div class="val" id="ekTendencia">—</div><div class="sub" id="ekTendenciaSub">—</div></div>
+  <div class="card"><div class="lbl">Maior mês de gastos</div><div class="val" style="color:var(--pink)" id="ekPiorMes">—</div><div class="sub" id="ekPiorMesSub">—</div></div>
+  <div class="card"><div class="lbl">Melhor mês (saldo)</div><div class="val" style="color:var(--green)" id="ekMelhorMes">—</div><div class="sub" id="ekMelhorMesSub">—</div></div>
+</div>
+<div id="ekAlerta" style="display:none;background:#3b1e1e;border:1px solid var(--pink);border-radius:11px;padding:12px 18px;margin-bottom:14px;font-size:.82rem;color:var(--pink)"></div>
 <div class="filters" style="margin-bottom:14px">
   <div class="filters-row">
     <div class="fgrp"><label>Mês</label><select id="eMes" onchange="applyEntradas()"><option value="">Todos</option></select></div>
@@ -1944,6 +1952,56 @@ function applyEntradas(){
   document.getElementById('ekSaldo').textContent='R$ '+saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('ekSaldo').style.color=saldo>=0?'var(--green)':'var(--pink)';
   document.getElementById('ekSaldoSub').textContent=saldo>=0?'Sobrou este mês':'Gastou mais do que ganhou';
+
+  // alerta saídas > entradas
+  var alerta=document.getElementById('ekAlerta');
+  if(total>0&&totalSaidas>total){
+    alerta.style.display='block';
+    alerta.textContent='⚠️ Atenção: suas saídas (R$ '+totalSaidas.toLocaleString('pt-BR',{minimumFractionDigits:2})+') superaram as entradas (R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2})+') em R$ '+(totalSaidas-total).toLocaleString('pt-BR',{minimumFractionDigits:2})+(mes?' neste mês.':' no período selecionado.');
+  } else {
+    alerta.style.display='none';
+  }
+
+  // taxa de poupança
+  var poupanca=total>0?Math.round(saldo/total*100):0;
+  document.getElementById('ekPoupanca').textContent=poupanca+'%';
+  document.getElementById('ekPoupanca').style.color=poupanca>=20?'var(--green)':poupanca>=0?'var(--yellow)':'var(--pink)';
+  document.getElementById('ekPoupancaSub').textContent=poupanca>=20?'Excelente':poupanca>=10?'Bom':poupanca>=0?'Atenção':'Negativo';
+  document.getElementById('ekPoupancaBar').style.width=Math.max(0,Math.min(100,poupanca))+'%';
+  document.getElementById('ekPoupancaBar').style.background=poupanca>=20?'var(--green)':poupanca>=0?'var(--yellow)':'var(--pink)';
+
+  // tendência: compara últimos 2 meses de saídas (só quando "Todos")
+  var tendEl=document.getElementById('ekTendencia');
+  var tendSub=document.getElementById('ekTendenciaSub');
+  var saidaMesAll={};
+  ALL_CARTAO.forEach(function(r){if(!r.data)return;var p=r.data.split('/');var m=p[2]+'-'+p[1];saidaMesAll[m]=(saidaMesAll[m]||0)+r.val;});
+  ALL_PIX.forEach(function(r){if(!r.data)return;var p=(r.data||'').split('/');var m=p[2]+'-'+p[1];saidaMesAll[m]=(saidaMesAll[m]||0)+(parseFloat(r.valor)||0);});
+  var mesesSaida=Object.keys(saidaMesAll).sort();
+  if(mesesSaida.length>=2){
+    var mAtual=mesesSaida[mesesSaida.length-1];
+    var mAnt=mesesSaida[mesesSaida.length-2];
+    var diff=saidaMesAll[mAtual]-saidaMesAll[mAnt];
+    var pct=Math.round(Math.abs(diff)/saidaMesAll[mAnt]*100);
+    if(diff>50){tendEl.textContent='↑ +'+pct+'%';tendEl.style.color='var(--pink)';tendSub.textContent='Gastou mais que o mês anterior';}
+    else if(diff<-50){tendEl.textContent='↓ -'+pct+'%';tendEl.style.color='var(--green)';tendSub.textContent='Gastou menos que o mês anterior';}
+    else{tendEl.textContent='→ Estável';tendEl.style.color='var(--muted)';tendSub.textContent='Gastos similares ao mês anterior';}
+  }
+
+  // pior e melhor mês
+  var saldoMes={};
+  var entMesAll={};
+  ALL_ENTRADAS.forEach(function(r){var p=(r.data||'').split('/');var m=p[2]+'-'+p[1];entMesAll[m]=(entMesAll[m]||0)+(parseFloat(r.valor)||0);});
+  var todosMeses=Array.from(new Set(Object.keys(entMesAll).concat(Object.keys(saidaMesAll))));
+  todosMeses.forEach(function(m){saldoMes[m]=(entMesAll[m]||0)-(saidaMesAll[m]||0);});
+  var meses_saldo=Object.entries(saldoMes).sort(function(a,b){return a[1]-b[1];});
+  if(meses_saldo.length){
+    var pior=meses_saldo[0];
+    var melhor=meses_saldo[meses_saldo.length-1];
+    document.getElementById('ekPiorMes').textContent=pior[0];
+    document.getElementById('ekPiorMesSub').textContent='Saldo R$ '+pior[1].toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('ekMelhorMes').textContent=melhor[0];
+    document.getElementById('ekMelhorMesSub').textContent='Saldo R$ '+melhor[1].toLocaleString('pt-BR',{minimumFractionDigits:2});
+  }
   document.getElementById('eCount').textContent=f.length;
   document.getElementById('eTotal').textContent=total.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('lblEntradas').textContent=f.length+' transações';
