@@ -113,7 +113,18 @@ body.light tr:hover td{background:#f8fafc}
 #chatInput{flex:1;background:#0f1623;border:1px solid #1e2d45;color:#e2e8f0;border-radius:8px;padding:7px 10px;font-size:.75rem}
 #chatInput:focus{outline:1px solid var(--blue)}
 #chatSend{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:.8rem;cursor:pointer}
-@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}}
+@media print{
+  body{background:#fff!important;color:#000!important}
+  .topbar,.filters,.tabs,.tab-pane:not(#tab-entradas),#chatFab,#chatBox,#nfeModal,#overrideModal,#loginScreen,.btn{display:none!important}
+  #tab-entradas{display:block!important}
+  .card{border:1px solid #ccc!important;background:#fff!important;color:#000!important}
+  .card .val,.card .lbl,.card .sub{color:#000!important}
+  canvas{max-height:200px}
+  .box{border:1px solid #ccc!important;page-break-inside:avoid}
+  .tbl-wrap{max-height:none!important;overflow:visible!important}
+  table{font-size:.65rem}
+  @page{margin:15mm}
+}
 @media(max-width:600px){.main{padding:12px 14px}.topbar{padding:10px 14px}.topbar h1{font-size:.95rem}.cards{gap:8px}.card{min-width:calc(50% - 4px);padding:12px 14px}.card .val{font-size:1.35rem}.grid4{grid-template-columns:1fr 1fr}.fgrp select,.fgrp input[type=text]{min-width:0;width:100%}canvas{max-height:180px}table{font-size:.68rem}th,td{padding:5px 6px}.desc-td{max-width:120px}.loja-mini,.date-td{display:none}}
 /* modal edição override */
 #overrideModal{display:none;position:fixed;inset:0;background:#000a;z-index:2000;align-items:center;justify-content:center}
@@ -521,6 +532,8 @@ body.light tr:hover td{background:#f8fafc}
       </select>
     </div>
     <button class="btn" onclick="document.getElementById('eMes').value='';document.getElementById('eTipo').value='';document.getElementById('eBanco').value='';applyEntradas()">✕ Limpar</button>
+    <button class="btn" onclick="exportarRelatorioExcel()" style="background:#164e1e;color:#34d399;border:1px solid #34d399">⬇ Excel</button>
+    <button class="btn" onclick="exportarRelatorioPDF()" style="background:#1e1e4e;color:#818cf8;border:1px solid #818cf8">🖨 PDF</button>
     <div class="fstat"><span id="eCount">—</span> entradas · R$ <span id="eTotal" style="color:var(--green);font-weight:600">—</span></div>
   </div>
 </div>
@@ -2055,7 +2068,90 @@ function applyEntradas(){
   }).join('');
 }
 
-// ── Abas ──────────────────────────────────────────────────────────
+// ── Exportar Relatório ────────────────────────────────────────────
+function exportarRelatorioExcel(){
+  var mes = document.getElementById('eMes').value;
+  var label = mes || 'completo';
+
+  // filtra dados pelo mês
+  function filtrarPorMes(arr, getFn){
+    if(!mes) return arr;
+    return arr.filter(function(r){ return getFn(r)===mes; });
+  }
+  function mesDe(data){ var p=(data||'').split('/'); return p[2]+'-'+p[1]; }
+
+  var entF = filtrarPorMes(ALL_ENTRADAS, function(r){ return mesDe(r.data); });
+  var cartF = filtrarPorMes(ALL_CARTAO, function(r){ return r.mes; });
+  var pixF  = filtrarPorMes(ALL_PIX, function(r){ return mesDe(r.data); });
+
+  var totEnt = entF.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+  var totCart = cartF.reduce(function(s,r){return s+r.val;},0);
+  var totPix  = pixF.reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
+  var totSaid = totCart+totPix;
+  var saldo = totEnt-totSaid;
+
+  var wb = XLSX.utils.book_new();
+
+  // aba Resumo
+  var resumo = [
+    ['NFG Tracker — Relatório Mensal', label],
+    [],
+    ['ENTRADAS',''],
+    ['Total entradas','R$ '+totEnt.toFixed(2)],
+    ['  Salário','R$ '+entF.filter(function(r){return r.tipo==='Salário';}).reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0).toFixed(2)],
+    ['  PIX recebido','R$ '+entF.filter(function(r){return r.tipo==='PIX recebido';}).reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0).toFixed(2)],
+    [],
+    ['SAÍDAS',''],
+    ['Total saídas','R$ '+totSaid.toFixed(2)],
+    ['  Cartão Itaú','R$ '+cartF.filter(function(r){return r.banco==='Itaú';}).reduce(function(s,r){return s+r.val;},0).toFixed(2)],
+    ['  Cartão Nubank','R$ '+cartF.filter(function(r){return r.banco==='Nubank';}).reduce(function(s,r){return s+r.val;},0).toFixed(2)],
+    ['  PIX enviados','R$ '+totPix.toFixed(2)],
+    [],
+    ['SALDO','R$ '+saldo.toFixed(2)],
+    ['Taxa de poupança',totEnt>0?Math.round(saldo/totEnt*100)+'%':'—'],
+  ];
+  var wsR = XLSX.utils.aoa_to_sheet(resumo);
+  wsR['!cols']=[{wch:28},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsR, 'Resumo');
+
+  // aba Entradas
+  var hEnt=['Data','Tipo','Banco','Valor (R$)','Descrição'];
+  var rowsEnt=entF.map(function(r){return [r.data,r.tipo,r.banco,parseFloat(r.valor)||0,r.descricao||''];});
+  var wsE=XLSX.utils.aoa_to_sheet([hEnt].concat(rowsEnt));
+  wsE['!cols']=[{wch:12},{wch:14},{wch:10},{wch:12},{wch:50}];
+  XLSX.utils.book_append_sheet(wb, wsE, 'Entradas');
+
+  // aba Saídas Cartão
+  var hCart=['Data','Descrição','Categoria','Banco','Parcelamento','Valor (R$)'];
+  var rowsCart=cartF.map(function(r){return [r.data,r.desc,r.cat,r.banco||'Itaú',r.parcela||'',r.val];});
+  var wsC=XLSX.utils.aoa_to_sheet([hCart].concat(rowsCart));
+  wsC['!cols']=[{wch:12},{wch:42},{wch:22},{wch:10},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsC, 'Cartão');
+
+  // aba Saídas PIX
+  var hPix=['Data','Destinatário','Categoria','Banco origem','Banco destino','Valor (R$)'];
+  var rowsPix=pixF.map(function(r){return [r.data,r.destinatario||'',r.cat||'',r.banco||'',r.banco_dest||'',parseFloat(r.valor)||0];});
+  var wsP=XLSX.utils.aoa_to_sheet([hPix].concat(rowsPix));
+  wsP['!cols']=[{wch:12},{wch:38},{wch:22},{wch:10},{wch:28},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsP, 'PIX');
+
+  // aba Por Categoria (saídas)
+  var byCat={};
+  cartF.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
+  pixF.forEach(function(r){byCat[r.cat||'Outros']=(byCat[r.cat||'Outros']||0)+(parseFloat(r.valor)||0);});
+  var catRows=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];}).map(function(e){return [e[0],+e[1].toFixed(2)];});
+  var wsCat=XLSX.utils.aoa_to_sheet([['Categoria','Total (R$)']].concat(catRows));
+  wsCat['!cols']=[{wch:24},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsCat, 'Por Categoria');
+
+  var data=new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb, 'NFG_Relatorio_'+label+'_'+data+'.xlsx');
+}
+
+function exportarRelatorioPDF(){
+  var mes = document.getElementById('eMes').value || 'completo';
+  window.print();
+}
 function showTab(id,btn){
   document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
