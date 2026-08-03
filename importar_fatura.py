@@ -51,13 +51,30 @@ def buscar_existentes():
     print(f'  {len(existentes)} lançamentos já existentes')
     return existentes
 
+def normalizar_lancamento(desc):
+    """Normaliza nome do lançamento removendo sufixos de cidade para comparação."""
+    import re
+    desc = (desc or '').strip()
+    # remove espaços múltiplos primeiro
+    desc = re.sub(r'\s{2,}', ' ', desc)
+    # remove sufixo de cidade com ou sem espaço (inclui variantes coladas como "sao leopoldobra")
+    desc = re.sub(r'(?i)\s*(sao leopoldo|sapucaia do s|capao da cano|porto alegre|sao paulo|canoas|novo hamburgo|campo bom|embu[^a-z]|tupandi|dois irmaos|nova santa rita|gravatai|torres[^a-z]|tramandai|barueri|osasco|cuiab|cajamar|rio de janeir|eldorado|serra[^a-z]).*$', '', desc).strip()
+    # remove "bra" isolado no final
+    desc = re.sub(r'(?i)\s*\bbra\b\s*$', '', desc).strip()
+    # para nomes com cidade colada sem espaço (ex: "Raia2381so Leopoldo"), usa só primeiros 20 chars
+    # se o nome tem menos de 25 chars, mantém como está
+    return desc[:25].strip() if len(desc) > 25 else desc
+
 def chave_lancamento(linha, header):
-    """Chave única: data + lançamento + valor"""
+    """Chave única: data + valor + parcelamento (mais estável que o nome)"""
     idx = {h: i for i, h in enumerate(header)}
     data  = linha[idx.get('Data', 0)] if 'Data' in idx else ''
-    desc  = linha[idx.get('Lançamento', 1)] if 'Lançamento' in idx else ''
     valor = linha[idx.get('Valor', 3)] if 'Valor' in idx else ''
-    return f'{data}|{desc}|{valor}'
+    parcela = linha[idx.get('Parcelamento', 2)] if 'Parcelamento' in idx else ''
+    desc  = linha[idx.get('Lançamento', 1)] if 'Lançamento' in idx else ''
+    # primeiros 15 chars normalizados + data + valor
+    norm = normalizar_lancamento(str(desc))[:15]
+    return f'{data}|{norm}|{valor}'
 
 def buscar_existentes():
     """Retorna set de chaves já no Supabase."""
@@ -72,7 +89,8 @@ def buscar_existentes():
         rows = r.json()
         if not rows: break
         for row in rows:
-            existentes.add(f"{row['data']}|{row['lancamento']}|{row['valor']}")
+            norm = normalizar_lancamento(row['lancamento'] or '')[:15]
+            existentes.add(f"{row['data']}|{norm}|{row['valor']}")
         if len(rows) < 1000: break
         offset += 1000
     print(f'  {len(existentes)} lançamentos já existentes')
@@ -95,6 +113,17 @@ def ler_fatura(path):
         # filtra só datas reais
         data_raw = vals[keep[0]] if keep else None
         if not isinstance(data_raw, datetime) and not (isinstance(data_raw, str) and len(data_raw) == 10):
+            continue
+        # pega valor e ignora pagamentos e valores negativos/zero
+        try:
+            val_raw = vals[keep[3]] if len(keep) > 3 else None
+            val_num = float(str(val_raw).replace(',','.')) if val_raw is not None else 0
+        except: val_num = 0
+        if val_num <= 0:
+            continue
+        # ignora lançamentos de pagamento e devolução
+        lancamento_raw = str(vals[keep[1]] if len(keep) > 1 else '') or ''
+        if any(x in lancamento_raw.lower() for x in ['pagamento', 'devolucao', 'devoluç', 'iof de ']):
             continue
         linha = []
         for i in keep:
