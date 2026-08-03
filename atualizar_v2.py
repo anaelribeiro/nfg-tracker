@@ -396,7 +396,16 @@ def main():
     # itens novos
     if linhas_itens:
         print(f"  → {len(linhas_itens)} itens novos...")
-        rows_itens = [dict(zip(CAMPOS_ITENS, linha)) for linha in linhas_itens]
+        CAMPOS_NUMERIC = {'valor_total_nota','valor_desconto','quantidade','valor_unit','valor_total_item'}
+        rows_itens = []
+        for linha in linhas_itens:
+            row = dict(zip(CAMPOS_ITENS, linha))
+            for campo in CAMPOS_NUMERIC:
+                v = row.get(campo, '')
+                if isinstance(v, str):
+                    try: row[campo] = float(v.replace(',','.')) if v else None
+                    except: row[campo] = None
+            rows_itens.append(row)
         supa_upsert('itens', rows_itens, 'chave,codigo')
 
     print(f"\n[✓] Concluído: +{len(novas)} notas, +{len(linhas_itens)} itens")
