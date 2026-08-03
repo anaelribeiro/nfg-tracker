@@ -84,7 +84,7 @@ def ler_fatura(path):
     rows = list(ws.iter_rows(values_only=True))
 
     header_raw = [str(c).strip() if c is not None else '' for c in rows[HEADER_ROW - 1]]
-    keep = [i for i, h in enumerate(header_raw) if h not in COLUNAS_REMOVER]
+    keep = [i for i, h in enumerate(header_raw) if h and h not in COLUNAS_REMOVER]
     header = [header_raw[i] for i in keep]
 
     lancamentos = []
