@@ -151,6 +151,8 @@ body.dark #bnav{background:#111827}
         <div class="kpi-card"><div class="lbl">Notas</div><div class="val" style="color:var(--green)" id="mkNotas">—</div><div class="sub">fiscais</div></div>
         <div class="kpi-card"><div class="lbl">Ticket médio</div><div class="val" style="color:var(--pink)" id="mkTicket">—</div><div class="sub">por nota</div></div>
         <div class="kpi-card"><div class="lbl">Poupança</div><div class="val" id="mkPoupanca">—</div><div class="sub" id="mkPoupancaSub">—</div><div class="pbar"><div class="pfill" id="mkPoupancaBar" style="width:0%"></div></div></div>
+        <div class="kpi-card"><div class="lbl">Produtos únicos</div><div class="val" style="color:var(--purple)" id="mkProds">—</div><div class="sub" id="mkRedes">—</div></div>
+        <div class="kpi-card"><div class="lbl">Maior categoria</div><div class="val" style="color:var(--orange);font-size:.9rem;padding-top:4px" id="mkCatNome">—</div><div class="sub" id="mkCatSub">—</div></div>
       </div>
       <div class="chart-box">
         <h3>Gastos por mês (R$)</h3>
@@ -168,6 +170,7 @@ body.dark #bnav{background:#111827}
       <div class="chip-tabs">
         <button class="chip active" onclick="mShowChip('gastos','nfg',this)">NFG</button>
         <button class="chip" onclick="mShowChip('gastos','padroes',this)">Padrões</button>
+        <button class="chip" onclick="mShowChip('gastos','dias',this);mRenderDias()">Por Dia</button>
       </div>
       <div class="chip-pane active" id="gastos-nfg">
         <div class="filter-row">
@@ -203,13 +206,27 @@ body.dark #bnav{background:#111827}
       <div class="chip-pane" id="gastos-padroes">
         <div class="chart-box"><h3>Horário de compras (R$)</h3><canvas id="mcHora"></canvas></div>
         <div class="chart-box"><h3>Dia da semana (R$)</h3><canvas id="mcDow"></canvas></div>
+        <div class="chart-box"><h3>Forma de pagamento</h3><canvas id="mcPgto"></canvas></div>
+        <div class="chart-box"><h3>Tipo de nota</h3><canvas id="mcTipo"></canvas></div>
+      </div>
+      <!-- histórico por dia -->
+      <div class="chip-pane" id="gastos-dias">
+        <div id="mDiasList"></div>
       </div>
     </div>
 
     <!-- PRODUTOS -->
     <div class="sec" id="sec-produtos">
       <div style="height:8px"></div>
-      <input type="search" id="mProdSearch" placeholder="🔍 Buscar produto..." oninput="mFilterProd()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px 14px;font-size:.85rem;margin-bottom:12px">
+      <input type="search" id="mProdSearch" placeholder="🔍 Buscar produto..." oninput="mFilterProd()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px 14px;font-size:.85rem;margin-bottom:8px">
+      <div class="filter-row" style="margin-bottom:10px">
+        <select id="mProdSort" onchange="mFilterProd()" style="font-size:.72rem">
+          <option value="total">Ordenar: Maior valor</option>
+          <option value="compras">Ordenar: Mais comprado</option>
+          <option value="recente">Ordenar: Mais recente</option>
+        </select>
+        <div id="mProdSubtotal" style="font-size:.72rem;color:var(--muted);text-align:right"></div>
+      </div>
       <div id="mProdList"></div>
       <button class="load-more" id="mProdMore" onclick="mLoadMoreProd()" style="display:none">Ver mais produtos</button>
     </div>
@@ -644,6 +661,17 @@ function mRenderInicio(){
   document.getElementById('mkSub').textContent=mesAtual;
   document.getElementById('mkNotas').textContent=notas;
   document.getElementById('mkTicket').textContent='R$ '+ticket.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  // KPIs extras
+  var prods=new Set(f.map(function(r){return r.desc;})).size;
+  var redes=new Set(f.map(function(r){return r.loja_c||r.loja||'';})).size;
+  document.getElementById('mkProds').textContent=prods;
+  document.getElementById('mkRedes').textContent=redes+' redes';
+  var byCat2={};f.forEach(function(r){byCat2[r.cat]=(byCat2[r.cat]||0)+r.val;});
+  var topCat=Object.entries(byCat2).sort(function(a,b){return b[1]-a[1];})[0];
+  if(topCat&&tot>0){
+    document.getElementById('mkCatNome').textContent=topCat[0];
+    document.getElementById('mkCatSub').textContent='R$ '+topCat[1].toLocaleString('pt-BR',{minimumFractionDigits:2});
+  }
 
   // poupança
   var totEnt=ALL_ENTRADAS.filter(function(r){return r.mes===mesAtual;}).reduce(function(s,r){return s+r.val;},0);
@@ -712,6 +740,40 @@ function mApplyGastos(){
   mkBar('mcHora',hLabs,hVals,'#7c3aed');
   mkBar('mcDow',['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],byDow.map(function(v){return +v.toFixed(2);}),
     byDow.map(function(_,i){return i===0||i===6?'#ea580c':'#2563eb';}));
+  // pagamento e tipo de nota
+  var byPgto={},byTipo={};
+  f.forEach(function(r){
+    if(r.pagamento)byPgto[r.pagamento.split(':')[0].split(';')[0].trim()]=(byPgto[r.pagamento.split(':')[0].split(';')[0].trim()]||0)+r.val;
+    if(r.tipo)byTipo[r.tipo]=(byTipo[r.tipo]||0)+r.val;
+  });
+  var pgtoE=Object.entries(byPgto).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+  var tipoE=Object.entries(byTipo).sort(function(a,b){return b[1]-a[1];});
+  if(pgtoE.length)mkDonut('mcPgto',pgtoE.map(function(x){return x[0];}),pgtoE.map(function(x){return +x[1].toFixed(2);}));
+  if(tipoE.length)mkDonut('mcTipo',tipoE.map(function(x){return x[0];}),tipoE.map(function(x){return +x[1].toFixed(2);}));
+}
+
+function mRenderDias(){
+  var mes=document.getElementById('mfMes').value;
+  var f=mes?ALL_ITENS.filter(function(r){return r.mes===mes;}):ALL_ITENS;
+  var DIAS_NOTAS={};
+  f.forEach(function(r){
+    var dia=r.dia||r.emissao;
+    if(!dia)return;
+    if(!DIAS_NOTAS[dia])DIAS_NOTAS[dia]={chaves:new Set(),lojas:new Set(),total:0,pgtos:new Set(),emissao:r.emissao};
+    DIAS_NOTAS[dia].chaves.add(r.chave);
+    DIAS_NOTAS[dia].lojas.add(r.loja_c||r.loja||'');
+    DIAS_NOTAS[dia].total+=r.val;
+    if(r.pagamento)DIAS_NOTAS[dia].pgtos.add(r.pagamento.split(':')[0].trim());
+  });
+  var diasDesc=Object.keys(DIAS_NOTAS).sort().reverse();
+  document.getElementById('mDiasList').innerHTML=diasDesc.map(function(d){
+    var info=DIAS_NOTAS[d];
+    var lojas=Array.from(info.lojas).join(', ');
+    return '<div class="list-item"><div class="li-main">'+
+      '<div class="li-desc">'+info.emissao+'</div>'+
+      '<div class="li-sub">'+lojas.substring(0,30)+' · '+info.chaves.size+' nota(s)</div></div>'+
+      '<div class="li-val">R$ '+info.total.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div></div>';
+  }).join('') || '<div style="padding:16px;text-align:center;color:var(--muted);font-size:.8rem">Nenhum dado para o período</div>';
 }
 
 // ── Seção Produtos ────────────────────────────────────────────────
@@ -731,7 +793,19 @@ function mRenderProdutos(){
 var FILTERED_PRODS=[];
 function mFilterProd(){
   var q=(document.getElementById('mProdSearch').value||'').toLowerCase();
+  var sort=(document.getElementById('mProdSort')&&document.getElementById('mProdSort').value)||'total';
   FILTERED_PRODS=ALL_PRODS.filter(function(e){return !q||e[0].toLowerCase().includes(q);});
+  if(sort==='compras')FILTERED_PRODS.sort(function(a,b){return b[1].compras-a[1].compras;});
+  else if(sort==='recente')FILTERED_PRODS.sort(function(a,b){
+    var da=a[1].datas.slice().sort().reverse()[0]||'';
+    var db=b[1].datas.slice().sort().reverse()[0]||'';
+    return db.localeCompare(da);
+  });
+  else FILTERED_PRODS.sort(function(a,b){return b[1].total-a[1].total;});
+  // subtotal
+  var subTot=FILTERED_PRODS.reduce(function(s,e){return s+e[1].total;},0);
+  var subEl=document.getElementById('mProdSubtotal');
+  if(subEl)subEl.textContent=FILTERED_PRODS.length+' produtos · R$ '+subTot.toLocaleString('pt-BR',{minimumFractionDigits:2});
   PROD_PAGE=0;
   mRenderProdList();
 }
