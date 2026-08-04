@@ -676,7 +676,7 @@ function mRenderInicio(){
   // poupança
   var totEnt=ALL_ENTRADAS.filter(function(r){return r.mes===mesAtual;}).reduce(function(s,r){return s+r.val;},0);
   var totSaid=ALL_CARTAO.filter(function(r){return r.mes===mesAtual;}).reduce(function(s,r){return s+r.val;},0)+
-              ALL_PIX.filter(function(r){return r.mes===mesAtual;}).reduce(function(s,r){return s+r.val;},0);
+              ALL_PIX.filter(function(r){return r.mes===mesAtual;}).reduce(function(s,r){return s+(parseFloat(r.valor)||0);},0);
   var pct=totEnt>0?Math.round((totEnt-totSaid)/totEnt*100):0;
   document.getElementById('mkPoupanca').textContent=pct+'%';
   document.getElementById('mkPoupanca').style.color=pct>=20?'var(--green)':pct>=0?'var(--yellow)':'var(--pink)';
@@ -694,7 +694,7 @@ function mRenderInicio(){
   var entMes={},saidMes={};
   ALL_ENTRADAS.forEach(function(r){entMes[r.mes]=(entMes[r.mes]||0)+r.val;});
   ALL_CARTAO.forEach(function(r){saidMes[r.mes]=(saidMes[r.mes]||0)+r.val;});
-  ALL_PIX.forEach(function(r){saidMes[r.mes]=(saidMes[r.mes]||0)+r.val;});
+  ALL_PIX.forEach(function(r){saidMes[r.mes]=(saidMes[r.mes]||0)+(parseFloat(r.valor)||0);});
   var allM=Array.from(new Set(Object.keys(entMes).concat(Object.keys(saidMes)))).sort().slice(-6);
   mkBar('mcBalance',allM,[
     {label:'Entradas',data:allM.map(function(m){return +((entMes[m]||0)).toFixed(2);}),backgroundColor:'#16a34a',borderRadius:3},
