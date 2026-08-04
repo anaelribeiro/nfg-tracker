@@ -84,6 +84,29 @@ canvas{max-height:200px}
 /* filter row */
 .filter-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap}
 .filter-row select,.filter-row input{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-size:.75rem;flex:1;min-width:0}
+/* modal */
+#mModal{display:none;position:fixed;inset:0;background:#000a;z-index:3000;align-items:flex-end;justify-content:center}
+#mModal.show{display:flex}
+.modal-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:20px 20px 32px;width:100%;max-height:80vh;overflow-y:auto}
+.modal-sheet h3{font-size:.95rem;font-weight:700;margin-bottom:4px}
+.modal-sheet .ms-sub{font-size:.72rem;color:var(--muted);margin-bottom:16px}
+.modal-item{padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-item:last-child{border-bottom:none}
+.modal-item .mi-main{flex:1;min-width:0}
+.modal-item .mi-date{font-size:.75rem;font-weight:500}
+.modal-item .mi-loja{font-size:.65rem;color:var(--muted);margin-top:2px}
+.modal-item .mi-val{font-size:.82rem;font-weight:700;color:var(--blue);margin-left:10px}
+.nfe-link{font-size:1rem;text-decoration:none;margin-left:8px}
+/* override modal */
+#mOverrideModal{display:none;position:fixed;inset:0;background:#000a;z-index:3001;align-items:center;justify-content:center;padding:20px}
+#mOverrideModal.show{display:flex}
+.override-sheet{background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:380px}
+.override-sheet h3{font-size:.9rem;font-weight:700;margin-bottom:12px}
+.override-sheet select,.override-sheet input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:.82rem;margin-bottom:10px;min-height:44px}
+.override-sheet .ov-btns{display:flex;gap:8px;margin-top:4px}
+.override-sheet .ov-btns button{flex:1;padding:11px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;min-height:44px}
+.ov-save{background:var(--blue);color:#fff}
+.ov-cancel{background:var(--bg);border:1px solid var(--border)!important;color:var(--text)}
 /* dark mode */
 body.dark{--bg:#090d1a;--card:#111827;--border:#1e2d45;--text:#e2e8f0;--muted:#64748b}
 body.dark .topbar{background:#0f1623}
@@ -148,9 +171,27 @@ body.dark #bnav{background:#111827}
       </div>
       <div class="chip-pane active" id="gastos-nfg">
         <div class="filter-row">
-          <span class="sec-title" style="border:none;padding:0;margin:0;font-size:.7rem">Categorias</span>
           <select id="mfMes" onchange="mApplyGastos()" style="font-size:.72rem">
             <option value="">Todos os meses</option>
+          </select>
+          <select id="mfTipoLoja" onchange="mApplyGastos()" style="font-size:.72rem">
+            <option value="">Todos os tipos</option>
+            <option value="supermercado">🛒 Supermercado</option>
+            <option value="restaurante">🍽️ Restaurante</option>
+            <option value="farmacia">💊 Farmácia</option>
+            <option value="construcao">🏗 Construção</option>
+            <option value="outros">⛽ Outros</option>
+          </select>
+        </div>
+        <div class="filter-row" style="margin-top:-4px">
+          <select id="mfNutri" onchange="mApplyGastos()" style="font-size:.72rem">
+            <option value="">Todas qualidades</option>
+            <option value="saud">🥗 Saudável</option>
+            <option value="ultra">🚨 Ultraprocessado</option>
+            <option value="neutro">⬜ Neutro</option>
+          </select>
+          <select id="mfCatNFG" onchange="mApplyGastos()" style="font-size:.72rem">
+            <option value="">Todas categorias</option>
           </select>
         </div>
         <div class="chart-box">
@@ -281,7 +322,32 @@ body.dark #bnav{background:#111827}
     </div>
   </div>
 
-  <!-- bottom nav -->
+  <!-- Modal NF-e -->
+<div id="mModal" onclick="if(event.target===this)mCloseModal()">
+  <div class="modal-sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 id="mModalTitle">—</h3>
+      <button onclick="mCloseModal()" style="background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer">✕</button>
+    </div>
+    <div class="ms-sub" id="mModalSub"></div>
+    <div id="mModalBody"></div>
+  </div>
+</div>
+
+<!-- Modal Override -->
+<div id="mOverrideModal" onclick="if(event.target===this)mCloseOverride()">
+  <div class="override-sheet">
+    <h3>✏️ Editar lançamento</h3>
+    <input type="text" id="mOvDesc" placeholder="Descrição personalizada...">
+    <select id="mOvCat"></select>
+    <div class="ov-btns">
+      <button class="ov-cancel" onclick="mCloseOverride()">Cancelar</button>
+      <button class="ov-save" onclick="mSalvarOverride()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- bottom nav -->
   <div id="bnav">
     <button class="bnav-item active" onclick="mNav('inicio',this)"><span class="bnav-icon">🏠</span>Início</button>
     <button class="bnav-item" onclick="mNav('gastos',this)"><span class="bnav-icon">📊</span>Gastos</button>
@@ -448,11 +514,14 @@ function mLoadData(){
     mBuildCartao(results[2]);
     mBuildPix(results[3]);
     mBuildEntradas(results[4]);
+    mBuildProdNotas();
+    mLoadOverridesMob();
     document.getElementById('loadScreen').style.display='none';
     document.getElementById('app').style.display='flex';
     document.getElementById('mBadge').textContent='✓ '+ALL_ITENS.length+' itens';
     mRenderInicio();
     mPopulateMeses();
+    mPopulateCatNFG();
   }).catch(function(e){
     document.getElementById('loadScreen').innerHTML='<div style="color:#db2777;text-align:center;padding:20px">Erro ao carregar dados.<br><small>'+e.message+'</small></div>';
   });
@@ -608,16 +677,25 @@ function mRenderInicio(){
 // ── Seção Gastos ──────────────────────────────────────────────────
 function mApplyGastos(){
   var mes=document.getElementById('mfMes').value;
-  var f=mes?ALL_ITENS.filter(function(r){return r.mes===mes;}):ALL_ITENS;
+  var tipoLoja=document.getElementById('mfTipoLoja').value;
+  var nutri=document.getElementById('mfNutri').value;
+  var catNFG=document.getElementById('mfCatNFG').value;
+  var f=ALL_ITENS.filter(function(r){
+    return (!mes||r.mes===mes)&&
+           (!tipoLoja||classLojaMob(r.loja)===tipoLoja)&&
+           (!nutri||r.nutri===nutri)&&
+           (!catNFG||r.cat===catNFG);
+  });
   var byCat={};
   f.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.val;});
   var tot=f.reduce(function(s,r){return s+r.val;},0);
   var catSorted=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
   mkDonut('mcCatPie',catSorted.map(function(x){return x[0];}),catSorted.map(function(x){return +x[1].toFixed(2);}));
 
-  // cat cards
+  // cat cards clicáveis
   document.getElementById('mCatCards').innerHTML=catSorted.slice(0,6).map(function(e){
-    return '<div class="list-item"><div class="li-main"><div class="li-desc">'+e[0]+'</div>'+
+    return '<div class="list-item" onclick="mFiltrarCategoria(\''+e[0].replace(/'/g,'\\\'')+'\')" style="cursor:pointer">'+
+      '<div class="li-main"><div class="li-desc">'+e[0]+'</div>'+
       '<div class="li-sub">'+(tot>0?Math.round(e[1]/tot*100):0)+'% do total</div></div>'+
       '<div class="li-val">R$ '+e[1].toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div></div>';
   }).join('');
@@ -658,14 +736,25 @@ function mFilterProd(){
   mRenderProdList();
 }
 
+function mFiltrarCategoria(cat){
+  var sel=document.getElementById('mfCatNFG');
+  if(sel)sel.value=sel.value===cat?'':cat;
+  mApplyGastos();
+}
+
 function mRenderProdList(){
   var slice=FILTERED_PRODS.slice(0,PAGE_SIZE*(PROD_PAGE+1));
   document.getElementById('mProdList').innerHTML=slice.map(function(e){
     var v=e[1];var datas=v.datas.slice().sort().reverse();
-    return '<div class="list-item"><div class="li-main">'+
-      '<div class="li-desc">'+e[0].substring(0,35)+'</div>'+
+    var desc=e[0].replace(/'/g,'\\\'');
+    return '<div class="list-item" onclick="mAbrirNFe(\''+desc+'\')" style="cursor:pointer">'+
+      '<div class="li-main">'+
+      '<div class="li-desc">'+e[0].substring(0,33)+'</div>'+
       '<div class="li-sub">'+v.cat+' · '+v.compras+'x · '+datas[0]+'</div></div>'+
-      '<div class="li-val">R$ '+v.total.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div></div>';
+      '<div style="display:flex;align-items:center;gap:6px">'+
+      '<span class="li-val">R$ '+v.total.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>'+
+      '<span style="font-size:.7rem;color:var(--muted)">🔗</span>'+
+      '</div></div>';
   }).join('');
   var more=document.getElementById('mProdMore');
   more.style.display=FILTERED_PRODS.length>PAGE_SIZE*(PROD_PAGE+1)?'block':'none';
@@ -881,17 +970,29 @@ function mRenderList(tipo,data){
   var moreEl=document.getElementById('m'+tipo.charAt(0).toUpperCase()+tipo.slice(1)+'More');
   var page=tipo==='fatura'?FATURA_PAGE:tipo==='pix'?PIX_PAGE:tipo==='saidas'?SAIDAS_PAGE:ENTRADAS_PAGE;
   var slice=data.slice(0,PAGE_SIZE*(page+1));
+  var showEdit=(tipo==='fatura'||tipo==='pix'||tipo==='saidas');
   listEl.innerHTML=slice.map(function(r){
-    var desc=r.desc||r.dest||r.descricao||'';
-    var cat=r.cat||r.tipo||'';
+    var ov=OVERRIDES[r.chave]||{};
+    var desc=ov.desc||(r.desc||r.dest||r.descricao||'');
+    var cat=ov.cat||(r.cat||r.tipo||'');
     var canal=r.canal||'';
+    var val=r.val||parseFloat(r.valor)||0;
+    var chave=r.chave||(r.data+'|'+(r.desc||r.dest||'')+'|'+val);
+    var tipoOv=tipo==='pix'?'pix':'cartao';
+    var editBtn=showEdit?'<button class="edit-btn" onclick="event.stopPropagation();mAbrirOverride(\''+
+      chave.replace(/'/g,'\\\'')+'\',' +
+      '\''+tipoOv+'\',' +
+      '\''+(desc).substring(0,40).replace(/'/g,'\\\'')+'\',' +
+      '\''+(cat).replace(/'/g,'\\\'')+'\')" title="Editar">✏️</button>':'';
     return '<div class="list-item"><div class="li-main">'+
-      '<div class="li-desc">'+(canal?canal+' ':'')+desc.substring(0,32)+'</div>'+
+      '<div class="li-desc">'+(canal?canal+' ':'')+desc.substring(0,30)+'</div>'+
       '<div class="li-sub">'+cat+(r.data?' · '+r.data:'')+'</div></div>'+
-      '<div class="li-val" style="color:'+(r.tipo==='Salário'||r.tipo==='PIX recebido'?'var(--green)':'var(--blue)')+'">R$ '+r.val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div></div>';
+      '<div style="display:flex;align-items:center;gap:2px">'+
+      '<span class="li-val" style="color:'+(r.tipo==='Salário'||r.tipo==='PIX recebido'?'var(--green)':'var(--blue)')+'">R$ '+val.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>'+
+      editBtn+
+      '</div></div>';
   }).join('');
   if(moreEl)moreEl.style.display=data.length>PAGE_SIZE*(page+1)?'block':'none';
-  // armazena data para paginação
   if(tipo==='fatura')window._fatData=data;
   else if(tipo==='pix')window._pixData=data;
   else if(tipo==='saidas')window._saidData=data;
@@ -936,6 +1037,83 @@ function mRenderAnalises(){
   }).join('');
 }
 
+// ── Modal NF-e ────────────────────────────────────────────────────
+var PROD_NOTAS_M={};
+function mBuildProdNotas(){
+  PROD_NOTAS_M={};
+  ALL_ITENS.forEach(function(r){
+    if(!PROD_NOTAS_M[r.desc])PROD_NOTAS_M[r.desc]=[];
+    if(!PROD_NOTAS_M[r.desc].find(function(x){return x.chave===r.chave;}))
+      PROD_NOTAS_M[r.desc].push({chave:r.chave,data:r.data,loja:r.loja_c||r.loja,val:r.val,numero:r.numero});
+  });
+  Object.keys(PROD_NOTAS_M).forEach(function(d){
+    PROD_NOTAS_M[d].sort(function(a,b){return (b.data||'').split('/').reverse().join('').localeCompare((a.data||'').split('/').reverse().join(''));});
+  });
+}
+function mAbrirNFe(desc){
+  var notas=PROD_NOTAS_M[desc];if(!notas||!notas.length)return;
+  document.getElementById('mModalTitle').textContent=desc.substring(0,30);
+  document.getElementById('mModalSub').textContent=notas.length+' nota(s)';
+  document.getElementById('mModalBody').innerHTML=notas.map(function(n){
+    var url='https://www.sefaz.rs.gov.br/NFE/NFE-NFC.aspx?chaveNFe='+n.chave;
+    return '<div class="modal-item">'+
+      '<div class="mi-main"><div class="mi-date">'+(n.data||'')+(n.numero?' · Nota '+n.numero:'')+'</div>'+
+      '<div class="mi-loja">'+(n.loja||'').substring(0,30)+'</div></div>'+
+      '<div style="display:flex;align-items:center">'+
+      '<span class="mi-val">R$ '+(n.val||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>'+
+      '<a href="'+url+'" target="_blank" class="nfe-link">🔗</a>'+
+      '</div></div>';
+  }).join('');
+  document.getElementById('mModal').classList.add('show');
+}
+function mCloseModal(){document.getElementById('mModal').classList.remove('show');}
+
+// ── Override de categorias ────────────────────────────────────────
+var _mOvChave='', _mOvTipo='';
+function mAbrirOverride(chave,tipo,descAtual,catAtual){
+  _mOvChave=chave; _mOvTipo=tipo;
+  document.getElementById('mOvDesc').value=descAtual||'';
+  var cats=Object.keys(tipo==='pix'?CAT_PIX_M:CAT_CARTAO_M).concat(['❓ Outros']);
+  var sel=document.getElementById('mOvCat');
+  sel.innerHTML='';
+  cats.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=c;if(c===catAtual)o.selected=true;sel.appendChild(o);});
+  document.getElementById('mOverrideModal').classList.add('show');
+}
+function mCloseOverride(){document.getElementById('mOverrideModal').classList.remove('show');}
+function mSalvarOverride(){
+  var desc=document.getElementById('mOvDesc').value.trim();
+  var cat=document.getElementById('mOvCat').value;
+  var btn=document.querySelector('#mOverrideModal .ov-save');
+  btn.textContent='Salvando...';btn.disabled=true;
+  fetch('https://portfolio-api-ten-ecru.vercel.app/api/overrides?'+_authParams,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chave:_mOvChave,tipo:_mOvTipo,categoria:cat||null,descricao:desc||null,
+      user:decodeURIComponent(_authParams.split('user=')[1].split('&')[0]),
+      pass:decodeURIComponent(_authParams.split('pass=')[1])})
+  }).then(function(){
+    OVERRIDES[_mOvChave]={cat:cat||null,desc:desc||null};
+    mCloseOverride();
+    mRenderFatura();mRenderPix();mRenderSaidas();
+  }).catch(function(){alert('Erro ao salvar.');})
+  .finally(function(){btn.textContent='Salvar';btn.disabled=false;});
+}
+
+// ── Filtros avançados NFG ─────────────────────────────────────────
+var TIPO_LOJA_M={
+  supermercado:['macromix','atacadao','super barato','zaffari','stok center','mercado','supermercado','armazem'],
+  restaurante:['shoarma','restaurante','assados','mcdonald','burger','pizza','lanche','ifood','tortas'],
+  farmacia:['farmacia','raia','drogaria','agafarma','panvel'],
+  construcao:['madeireira','leroy merlin','tintas','bresolin','ferragem'],
+  outros:['autopecas','posto','wellhub','gympass']
+};
+function classLojaMob(loja){
+  if(!loja)return'outros';
+  var u=loja.toUpperCase();
+  var tipos=Object.keys(TIPO_LOJA_M);
+  for(var i=0;i<tipos.length;i++){var kws=TIPO_LOJA_M[tipos[i]];for(var j=0;j<kws.length;j++)if(u.indexOf(kws[j].toUpperCase())>=0)return tipos[i];}
+  return'outros';
+}
+
 // ── Navegação ─────────────────────────────────────────────────────
 var secRendered={};
 function mNav(sec,btn){
@@ -959,6 +1137,21 @@ function mShowChip(group,id,btn){
   btn.closest('.chip-tabs').querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
   document.getElementById(group+'-'+id).classList.add('active');
   btn.classList.add('active');
+}
+
+// ── Overrides e população ─────────────────────────────────────────
+var OVERRIDES={};
+function mLoadOverridesMob(){
+  if(!_authParams)return;
+  fetch('https://portfolio-api-ten-ecru.vercel.app/api/overrides?'+_authParams)
+    .then(function(r){return r.json();})
+    .then(function(rows){rows.forEach(function(r){OVERRIDES[r.chave]={cat:r.categoria,desc:r.descricao};});})
+    .catch(function(){});
+}
+function mPopulateCatNFG(){
+  var cats=new Set(ALL_ITENS.map(function(r){return r.cat;}));
+  var sel=document.getElementById('mfCatNFG');
+  if(sel)Array.from(cats).sort().forEach(function(c){sel.add(new Option(c,c));});
 }
 
 // ── Init ──────────────────────────────────────────────────────────
